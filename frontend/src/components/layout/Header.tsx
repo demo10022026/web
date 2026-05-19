@@ -22,6 +22,8 @@ export default function Header() {
   const navigate                        = useNavigate()
 
   const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager'
+  const canShowSellerEntry = !isAuthenticated || !isAdminOrManager
+  const canShowSellerMenu = isAuthenticated && !isAdminOrManager
 
   // Đóng dropdown khi click ngoài
   useEffect(() => {
@@ -53,23 +55,32 @@ export default function Header() {
       {/* ── Mini top bar ── */}
       <div className="hidden md:flex max-w-7xl mx-auto px-4 py-1 justify-end gap-4
                       text-xs text-orange-100 border-b border-orange-400/50">
-        {sellerStatus === 'none' || !isAuthenticated ? (
-          <Link to="/become-seller" className="hover:text-white transition-colors">
-            Bán hàng cùng ShopVN
-          </Link>
-        ) : sellerStatus === 'pending' ? (
-          <Link to="/seller/status" className="hover:text-white transition-colors">
-            ⏳ Hồ sơ đang chờ duyệt
-          </Link>
-        ) : sellerStatus === 'approved' ? (
-          <Link
-            to={shopId ? '/seller/dashboard' : '/seller/shop/setup'}
-            className="hover:text-white transition-colors"
-          >
-            🏪 {shopId ? shopName ?? 'Quản lý Shop' : 'Tạo Shop'}
-          </Link>
-        ) : null}
-        <span className="opacity-30">|</span>
+        {canShowSellerEntry && (
+            <>
+              {sellerStatus === 'none' || !isAuthenticated ? (
+                  <Link to="/become-seller" className="hover:text-white transition-colors">
+                    Bán hàng cùng ShopVN
+                  </Link>
+              ) : sellerStatus === 'pending' ? (
+                  <Link to="/seller/status" className="hover:text-white transition-colors">
+                    ⏳ Hồ sơ đang chờ duyệt
+                  </Link>
+              ) : sellerStatus === 'rejected' ? (
+                  <Link to="/seller/status" className="hover:text-white transition-colors">
+                    Hồ sơ seller bị từ chối
+                  </Link>
+              ) : sellerStatus === 'approved' ? (
+                  <Link
+                      to={shopId ? '/seller/dashboard' : '/seller/shop/setup'}
+                      className="hover:text-white transition-colors"
+                  >
+                    🏪 {shopId ? shopName ?? 'Quản lý Shop' : 'Tạo Shop'}
+                  </Link>
+              ) : null}
+
+              <span className="opacity-30">|</span>
+            </>
+        )}
         <Link to="/help" className="hover:text-white transition-colors">Hỗ trợ</Link>
       </div>
 
@@ -166,13 +177,13 @@ export default function Header() {
                     </p>
                     <p className="text-xs text-gray-400 truncate">{user?.email}</p>
                     {/* Seller badge */}
-                    {sellerStatus === 'pending' && (
+                    {canShowSellerMenu && sellerStatus === 'pending' && (
                       <span className="inline-flex items-center gap-1 mt-1.5 text-[10px]
                                        bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-medium">
                         <Clock className="h-2.5 w-2.5" /> Chờ duyệt seller
                       </span>
                     )}
-                    {sellerStatus === 'approved' && (
+                    {canShowSellerMenu && sellerStatus === 'approved' && (
                       <span className="inline-flex items-center gap-1 mt-1.5 text-[10px]
                                        bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">
                         <Store className="h-2.5 w-2.5" /> Seller
@@ -195,60 +206,77 @@ export default function Header() {
                   </div>
 
                   {/* ── Seller links ── */}
-                  <div className="border-t border-gray-100 py-1">
+                  {/* ── Seller links ── */}
+                  {canShowSellerMenu && (
+                      <div className="border-t border-gray-100 py-1">
 
-                    {/* Chưa đăng ký */}
-                    {sellerStatus === 'none' && (
-                      <Link to="/become-seller" onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2.5
-                                   hover:bg-orange-50 text-sm text-orange-600 font-medium">
-                        <Store className="h-4 w-4" />
-                        Bán hàng cùng ShopVN
-                      </Link>
-                    )}
-
-                    {/* Đang chờ duyệt */}
-                    {sellerStatus === 'pending' && (
-                      <Link to="/seller/status" onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2.5
-                                   hover:bg-yellow-50 text-sm text-yellow-700">
-                        <Clock className="h-4 w-4" />
-                        Hồ sơ đang chờ duyệt
-                      </Link>
-                    )}
-
-                    {/* Bị từ chối */}
-                    {sellerStatus === 'rejected' && (
-                      <Link to="/become-seller" onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2.5
-                                   hover:bg-red-50 text-sm text-red-600">
-                        <Store className="h-4 w-4" />
-                        Nộp lại hồ sơ seller
-                      </Link>
-                    )}
-
-                    {/* Đã được duyệt */}
-                    {sellerStatus === 'approved' && (
-                      <>
-                        <Link
-                          to={shopId ? '/seller/dashboard' : '/seller/shop/setup'}
-                          onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2.5
-                                     hover:bg-orange-50 text-sm text-orange-600 font-medium">
-                          <Store className="h-4 w-4" />
-                          {shopId ? 'Quản lý Shop' : 'Tạo Shop ngay'}
-                        </Link>
-                        {shopId && (
-                          <Link to="/seller/products/new" onClick={() => setDropdownOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2.5
-                                       hover:bg-orange-50 text-sm text-gray-600">
-                            <Package className="h-4 w-4 text-gray-400" />
-                            Thêm sản phẩm
-                          </Link>
+                        {/* Chưa đăng ký */}
+                        {sellerStatus === 'none' && (
+                            <Link
+                                to="/become-seller"
+                                onClick={() => setDropdownOpen(false)}
+                                className="flex items-center gap-2.5 px-4 py-2.5
+                   hover:bg-orange-50 text-sm text-orange-600 font-medium"
+                            >
+                              <Store className="h-4 w-4" />
+                              Bán hàng cùng ShopVN
+                            </Link>
                         )}
-                      </>
-                    )}
-                  </div>
+
+                        {/* Đang chờ duyệt */}
+                        {sellerStatus === 'pending' && (
+                            <Link
+                                to="/seller/status"
+                                onClick={() => setDropdownOpen(false)}
+                                className="flex items-center gap-2.5 px-4 py-2.5
+                   hover:bg-yellow-50 text-sm text-yellow-700"
+                            >
+                              <Clock className="h-4 w-4" />
+                              Hồ sơ đang chờ duyệt
+                            </Link>
+                        )}
+
+                        {/* Bị từ chối */}
+                        {sellerStatus === 'rejected' && (
+                            <Link
+                                to="/seller/status"
+                                onClick={() => setDropdownOpen(false)}
+                                className="flex items-center gap-2.5 px-4 py-2.5
+                   hover:bg-red-50 text-sm text-red-600"
+                            >
+                              <Store className="h-4 w-4" />
+                              Xem trạng thái hồ sơ seller
+                            </Link>
+                        )}
+
+                        {/* Đã được duyệt */}
+                        {sellerStatus === 'approved' && (
+                            <>
+                              <Link
+                                  to={shopId ? '/seller/dashboard' : '/seller/shop/setup'}
+                                  onClick={() => setDropdownOpen(false)}
+                                  className="flex items-center gap-2.5 px-4 py-2.5
+                     hover:bg-orange-50 text-sm text-orange-600 font-medium"
+                              >
+                                <Store className="h-4 w-4" />
+                                {shopId ? 'Quản lý Shop' : 'Tạo Shop ngay'}
+                              </Link>
+
+                              {shopId && (
+                                  <Link
+                                      to="/seller/products/new"
+                                      onClick={() => setDropdownOpen(false)}
+                                      className="flex items-center gap-2.5 px-4 py-2.5
+                       hover:bg-orange-50 text-sm text-gray-600"
+                                  >
+                                    <Package className="h-4 w-4 text-gray-400" />
+                                    Thêm sản phẩm
+                                  </Link>
+                              )}
+                            </>
+                        )}
+                      </div>
+                  )}
 
                   {/* ── Admin links ── */}
                   {isAdminOrManager && (

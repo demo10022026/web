@@ -23,6 +23,7 @@ import ProfilePage from '@/pages/ProfilePage'
 // Seller pages
 import BecomeSellerPage from '@/pages/seller/BecomeSellerPage'
 import SellerStatusPage from '@/pages/seller/SellerStatusPage'
+import SellerProtectedRoute from '@/components/ui/SellerProtectedRoute'
 
 // Cart pages
 import CartPage from '@/pages/CartPage'
@@ -92,12 +93,10 @@ export default function App() {
                         <Route path="/flash-sale" element={<FlashSalePage />} />
                     </Route>
 
-                    {/* User / Seller authenticated */}
+                    {/* User authenticated */}
                     <Route
                         element={
-                            <ProtectedRoute
-                                allowedRoles={['user', 'seller', 'admin', 'manager']}
-                            />
+                            <ProtectedRoute allowedRoles={['user', 'seller', 'admin', 'manager']} />
                         }
                     >
                         <Route element={<MainLayout />}>
@@ -112,6 +111,12 @@ export default function App() {
                             <Route path="/become-seller" element={<BecomeSellerPage />} />
                             <Route path="/seller/apply" element={<BecomeSellerPage />} />
                             <Route path="/seller/status" element={<SellerStatusPage />} />
+                        </Route>
+                    </Route>
+
+                    {/* Seller only: phải có seller_profile approved */}
+                    <Route element={<SellerProtectedRoute />}>
+                        <Route element={<MainLayout />}>
                             <Route path="/seller/shop/setup" element={<ShopSetupPage />} />
                             <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
                             <Route path="/seller/products/new" element={<CreateProductPage />} />
@@ -119,18 +124,11 @@ export default function App() {
                     </Route>
 
                     {/* Admin / Manager */}
-                    <Route
-                        element={
-                            <ProtectedRoute allowedRoles={['admin', 'manager']} />
-                        }
-                    >
+                    <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
                         <Route path="/admin" element={<AdminLayout />}>
                             <Route index element={<Navigate to="/admin/products" replace />} />
                             <Route path="products" element={<AdminProductsPage />} />
-                            <Route
-                                path="products/:productId"
-                                element={<AdminProductDetailPage />}
-                            />
+                            <Route path="products/:productId" element={<AdminProductDetailPage />} />
                         </Route>
                     </Route>
 

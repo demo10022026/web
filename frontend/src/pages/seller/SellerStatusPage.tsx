@@ -1,4 +1,3 @@
-import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
     AlertCircle,
@@ -15,6 +14,8 @@ import {
 import { sellerOnboardingApi } from '@/api/sellerOnboardingApi'
 import { useSellerStore } from '@/store/sellerStore'
 import type { SellerDocument, SellerProfile, SellerStatus } from '@/types/seller.types'
+import { useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
 function formatDate(value?: string) {
     if (!value) return '-'
@@ -200,21 +201,35 @@ export default function SellerStatusPage() {
         staleTime: 0,
     })
 
-    if (profile) {
-        setStatus(profile.verificationStatus)
-        setSellerId(profile.sellerId)
-        setRejection(profile.rejectionReason ?? null)
+    useEffect(() => {
+        if (profile) {
+            setStatus(profile.verificationStatus)
+            setSellerId(profile.sellerId)
+            setRejection(profile.rejectionReason ?? null)
 
-        if (profile.shopId) {
-            setShop(
-                profile.shopId,
-                profile.shopName ?? '',
-                profile.shopSlug ?? ''
-            )
+            if (profile.shopId) {
+                setShop(
+                    profile.shopId,
+                    profile.shopName ?? '',
+                    profile.shopSlug ?? ''
+                )
+            }
+
+            return
         }
-    } else if (!isLoading) {
-        reset()
-    }
+
+        if (!isLoading) {
+            reset()
+        }
+    }, [
+        profile,
+        isLoading,
+        setStatus,
+        setSellerId,
+        setRejection,
+        setShop,
+        reset,
+    ])
 
     if (isLoading) {
         return (

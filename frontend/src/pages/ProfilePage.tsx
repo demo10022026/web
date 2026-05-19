@@ -6,7 +6,7 @@ import { z }            from 'zod'
 import {
   User, Mail, Phone, Lock, CheckCircle, XCircle,
   Eye, EyeOff, Camera, Store, Clock, ChevronRight,
-  ShoppingBag, MapPin, Tag, ArrowRight,
+  ShoppingBag, MapPin, Tag,
 } from 'lucide-react'
 import toast                from 'react-hot-toast'
 import { useAuthStore }     from '@/store/authStore'

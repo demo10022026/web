@@ -10,11 +10,15 @@ export type UserRole = 'user' | 'seller' | 'admin' | 'manager'
 
 export interface UserInfo {
   userId: number
+  username: string
   email: string
   fullName: string
-  phone?: string
+  phoneNumber: string
+  avatarUrl?: string
   role: UserRole
-  accountStatus: 'active' | 'inactive' | 'banned'
+  emailVerified: boolean
+  phoneVerified: boolean
+  accountStatus: 'active' | 'suspended' | 'banned'
 }
 
 export interface AuthResponse {
