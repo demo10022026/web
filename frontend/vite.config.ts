@@ -15,7 +15,6 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-        // Không rewrite vì Spring Boot đã config context-path /api
       },
     },
   },

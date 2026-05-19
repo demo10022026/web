@@ -19,7 +19,7 @@ public class SellerDocument {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "document_type",
-            columnDefinition = "ENUM('citizen_id','business_license','tax_document')")
+            columnDefinition = "ENUM('citizen_id','citizen_id_back','business_license','tax_document')")
     private DocType documentType;
 
     @Column(name = "document_url", columnDefinition = "TEXT", nullable = false)
@@ -35,6 +35,12 @@ public class SellerDocument {
     @Builder.Default
     private LocalDateTime uploadedAt = LocalDateTime.now();
 
-    public enum DocType      { citizen_id, business_license, tax_document }
+    public enum DocType {
+        citizen_id,
+        citizen_id_back,
+        business_license,
+        tax_document
+    }
+
     public enum VerifyStatus { pending, approved, rejected }
 }
