@@ -3,10 +3,6 @@ import { useAuthStore } from '@/store/authStore'
 
 const axiosInstance = axios.create({
   baseURL: '/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 })
 
 // ---- Request interceptor: tự attach Bearer token ----
@@ -46,6 +42,7 @@ axiosInstance.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
         }).then((token) => {
+          originalRequest.headers = originalRequest.headers ?? {}
           originalRequest.headers.Authorization = `Bearer ${token}`
           return axiosInstance(originalRequest)
         })
@@ -67,7 +64,10 @@ axiosInstance.interceptors.response.use(
         const data = response.data.data
         setAuth(data)
         processQueue(null, data.accessToken)
+
+        originalRequest.headers = originalRequest.headers ?? {}
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`
+
         return axiosInstance(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)

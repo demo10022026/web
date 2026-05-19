@@ -61,10 +61,16 @@ public class SellerOnboardingController {
                     .body(ApiResponse.error("File không được để trống", "EMPTY_FILE"));
         }
 
-        SellerProfileResponse.DocumentResponse data =
-                service.uploadDocument(user.getUsername(), docType, file);
+        try {
+            SellerProfileResponse.DocumentResponse data =
+                    service.uploadDocument(user.getUsername(), docType, file);
 
-        return ResponseEntity.ok(ApiResponse.success("Upload thành công", data));
+            return ResponseEntity.ok(ApiResponse.success("Upload thành công", data));
+        } catch (RuntimeException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(e.getMessage(), "UPLOAD_FAILED"));
+        }
     }
 
     /**

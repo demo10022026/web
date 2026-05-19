@@ -80,8 +80,14 @@ const ALLOWED_FILE_TYPES = [
 
 function StepBar({ current }: { current: Step }) {
   const steps = [
-    { icon: FileText, label: 'Thông tin' },
-    { icon: Upload, label: 'Giấy tờ' },
+    {
+      icon: FileText,
+      label: 'Thông tin',
+    },
+    {
+      icon: Upload,
+      label: 'Giấy tờ',
+    },
   ]
 
   return (
@@ -153,9 +159,12 @@ function getUploadedDocTypes(documents?: SellerDocument[]) {
       (documents ?? [])
           .map((doc) => doc.documentType)
           .filter((type): type is DocType =>
-              ['citizen_id', 'citizen_id_back', 'business_license', 'tax_document'].includes(
-                  type
-              )
+              [
+                'citizen_id',
+                'citizen_id_back',
+                'business_license',
+                'tax_document',
+              ].includes(type)
           )
   )
 }
@@ -214,6 +223,10 @@ export default function BecomeSellerPage() {
       reset()
       setStep(1)
       setUploaded(new Set())
+      resetForm({
+        identityNumber: '',
+        taxCode: '',
+      })
       return
     }
 
@@ -241,15 +254,6 @@ export default function BecomeSellerPage() {
     }
 
     if (status === 'pending') {
-      const hasRequiredDocs =
-          uploadedDocTypes.has('citizen_id') &&
-          uploadedDocTypes.has('citizen_id_back')
-
-      if (hasRequiredDocs) {
-        navigate('/seller/status', { replace: true })
-        return
-      }
-
       setStep(2)
       return
     }
@@ -342,9 +346,11 @@ export default function BecomeSellerPage() {
         <div className="mx-auto max-w-lg">
           <div className="mb-8 text-center">
             <Store className="mx-auto h-10 w-10 text-orange-500" />
+
             <h1 className="mt-3 text-2xl font-bold text-gray-900">
               Đăng ký bán hàng
             </h1>
+
             <p className="mt-2 text-sm text-gray-500">
               Hoàn tất thông tin và giấy tờ để gửi hồ sơ xét duyệt seller.
             </p>
@@ -367,11 +373,13 @@ export default function BecomeSellerPage() {
                     <label className="mb-1 block text-sm font-medium text-gray-700">
                       CCCD / CMND
                     </label>
+
                     <input
                         {...register('identityNumber')}
                         placeholder="Nhập số CCCD / CMND"
                         className="w-full rounded-lg border border-gray-200 p-2 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                     />
+
                     {errors.identityNumber && (
                         <p className="mt-1 text-xs text-red-500">
                           {errors.identityNumber.message}
@@ -383,11 +391,13 @@ export default function BecomeSellerPage() {
                     <label className="mb-1 block text-sm font-medium text-gray-700">
                       Mã số thuế
                     </label>
+
                     <input
                         {...register('taxCode')}
                         placeholder="Không bắt buộc"
                         className="w-full rounded-lg border border-gray-200 p-2 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                     />
+
                     {errors.taxCode && (
                         <p className="mt-1 text-xs text-red-500">
                           {errors.taxCode.message}
@@ -413,6 +423,7 @@ export default function BecomeSellerPage() {
                   <h2 className="text-lg font-semibold text-gray-900">
                     Upload giấy tờ
                   </h2>
+
                   <p className="mt-1 text-sm text-gray-500">
                     CCCD / CMND mặt trước và mặt sau là bắt buộc.
                   </p>

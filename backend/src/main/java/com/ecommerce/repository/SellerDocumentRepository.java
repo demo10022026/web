@@ -23,5 +23,5 @@ public interface SellerDocumentRepository extends JpaRepository<SellerDocument, 
     void deleteBySellerAndDocumentType(
             @Param("seller") SellerProfile seller,
             @Param("type") SellerDocument.DocType type
-    );;
+    );
 }

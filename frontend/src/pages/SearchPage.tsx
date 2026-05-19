@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal, X, ChevronDown } from 'lucide-react'
+import { SlidersHorizontal, X } from 'lucide-react'
 import { productApi } from '@/api/productApi'
 import ProductCard from '@/components/ui/ProductCard'
-import { formatPrice } from '@/utils/mask'
 
 const SORT_OPTIONS = [
   { value: 'newest',    label: 'Mới nhất' },

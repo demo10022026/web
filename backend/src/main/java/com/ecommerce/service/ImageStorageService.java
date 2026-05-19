@@ -33,16 +33,15 @@ public class ImageStorageService {
     public ImageStorageService(
             @Value("${app.cloudinary.cloud-name}") String cloudName,
             @Value("${app.cloudinary.api-key}") String apiKey,
-            @Value("${app.cloudinary.api-secret}") String apiSecret) {
+            @Value("${app.cloudinary.api-secret}") String apiSecret
+    ) {
         this.cloudinary = new Cloudinary(ObjectUtils.asMap(
                 "cloud_name", cloudName,
                 "api_key", apiKey,
-                "api_secret", apiSecret));
+                "api_secret", apiSecret
+        ));
     }
 
-    /**
-     * Upload ảnh: ưu tiên local, fallback sang Cloudinary nếu local lỗi
-     */
     public String upload(MultipartFile file, String folder) {
         validateFile(file);
 
@@ -58,9 +57,6 @@ public class ImageStorageService {
         return uploadCloudinary(file, folder);
     }
 
-    /**
-     * Lưu file vào thư mục uploads/ trên server
-     */
     private String uploadLocal(MultipartFile file, String folder) throws IOException {
         String ext = getExtension(file.getOriginalFilename());
         String filename = UUID.randomUUID() + ext;
@@ -71,31 +67,37 @@ public class ImageStorageService {
         Path dest = dir.resolve(filename);
         Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
 
-        // Trả về URL để FE có thể truy cập
-        String url = baseUrl + contextPath + "/files/" + folder + "/" + filename;
+        String normalizedFolder = folder.replace("\\", "/");
+        String url = baseUrl + contextPath + "/files/" + normalizedFolder + "/" + filename;
+
         log.info("Đã lưu file local: {}", url);
         return url;
     }
 
-    /**
-     * Upload lên Cloudinary
-     */
     private String uploadCloudinary(MultipartFile file, String folder) {
         try {
             Map<?, ?> result = cloudinary.uploader().upload(
                     file.getBytes(),
-                    ObjectUtils.asMap("folder", "shopvn/" + folder));
+                    ObjectUtils.asMap(
+                            "folder", "shopvn/" + folder,
+                            "resource_type", "auto"
+                    )
+            );
+
             String url = (String) result.get("secure_url");
+
+            if (url == null || url.isBlank()) {
+                throw new RuntimeException("Cloudinary không trả về secure_url");
+            }
+
             log.info("Đã upload Cloudinary: {}", url);
             return url;
-        } catch (IOException e) {
+        } catch (Exception e) {
+            log.error("Upload Cloudinary thất bại", e);
             throw new RuntimeException("Upload Cloudinary thất bại: " + e.getMessage());
         }
     }
 
-    /**
-     * Xóa file local theo URL
-     */
     public void deleteLocal(String fileUrl) {
         try {
             String path = fileUrl.replace(baseUrl + contextPath + "/files/", "");
@@ -107,7 +109,10 @@ public class ImageStorageService {
     }
 
     private String getExtension(String filename) {
-        if (filename == null || !filename.contains(".")) return ".jpg";
+        if (filename == null || !filename.contains(".")) {
+            return ".jpg";
+        }
+
         return filename.substring(filename.lastIndexOf(".")).toLowerCase();
     }
 
@@ -122,6 +127,7 @@ public class ImageStorageService {
         }
 
         String contentType = file.getContentType();
+
         if (contentType == null ||
                 !(contentType.equals("image/jpeg")
                         || contentType.equals("image/png")
