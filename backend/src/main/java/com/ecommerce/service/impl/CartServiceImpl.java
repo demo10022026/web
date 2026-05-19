@@ -31,7 +31,7 @@ public class CartServiceImpl implements CartService {
     private final ProductVariantRepository productVariantRepository;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public CartResponse getMyCart(String email) {
         User user = getUser(email);
         ShoppingCart cart = getOrCreateCart(user);
@@ -46,7 +46,7 @@ public class CartServiceImpl implements CartService {
         ShoppingCart cart = getOrCreateCart(user);
 
         ProductVariant variant = productVariantRepository
-                .findActiveVariantWithProduct(request.getVariantId())
+                .findVariantWithProductByStatus(request.getVariantId(), Product.Status.active)
                 .orElseThrow(() -> AppException.notFound("Phân loại sản phẩm"));
 
         validateStock(variant, request.getQuantity());

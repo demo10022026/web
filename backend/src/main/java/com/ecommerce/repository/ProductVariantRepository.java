@@ -1,5 +1,6 @@
 package com.ecommerce.repository;
 
+import com.ecommerce.entity.Product;
 import com.ecommerce.entity.ProductVariant;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,9 +15,10 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
         JOIN FETCH v.product p
         JOIN FETCH p.shop s
         WHERE v.variantId = :variantId
-          AND p.productStatus = 'active'
+          AND p.productStatus = :status
     """)
-    Optional<ProductVariant> findActiveVariantWithProduct(
-            @Param("variantId") Integer variantId
+    Optional<ProductVariant> findVariantWithProductByStatus(
+            @Param("variantId") Integer variantId,
+            @Param("status") Product.Status status
     );
 }

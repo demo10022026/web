@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ShoppingCart, Zap, Star, Store, ChevronRight,
-  Minus, Plus, Shield, Truck
+  Minus, Plus, Shield, Truck, Loader2
 } from 'lucide-react'
 import { cartApi } from '@/api/cartApi'
 import { useCartStore } from '@/store/cartStore'
@@ -253,12 +253,29 @@ export default function ProductDetailPage() {
 
                 {/* Buttons */}
                 <div className="flex gap-3">
-                  <button onClick={handleAddToCart}
-                          disabled={addToCartMutation.isPending}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-3
-                             border-2 border-orange-500 text-orange-500 font-semibold
-                             rounded-xl hover:bg-orange-50 transition-colors text-sm">
-                    <ShoppingCart className="h-4 w-4" /> Thêm vào giỏ
+                  <button
+                      type="button"
+                      onClick={handleAddToCart}
+                      disabled={addToCartMutation.isPending}
+                      className={`
+    flex flex-1 items-center justify-center gap-2 rounded-xl
+    border-2 border-orange-500 px-4 py-3 text-sm font-semibold
+    text-orange-500 transition-colors
+    hover:bg-orange-50
+    disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent
+  `}
+                  >
+                    {addToCartMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Đang thêm...
+                        </>
+                    ) : (
+                        <>
+                          <ShoppingCart className="h-4 w-4" />
+                          Thêm vào giỏ
+                        </>
+                    )}
                   </button>
                   <button onClick={handleBuyNow}
                           className="flex-1 flex items-center justify-center gap-2 px-4 py-3
