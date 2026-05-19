@@ -150,7 +150,7 @@ export default function BecomeSellerPage() {
     if (s === 'approved') {
       navigate('/seller/shop/setup', { replace: true })
     } else if (s === 'pending') {
-      setStep(3)
+      navigate('/seller/status', { replace: true })
     } else if (s === 'rejected') {
       setStep(1)
     }
@@ -287,11 +287,12 @@ export default function BecomeSellerPage() {
                 ))}
 
                 <button
+                    type="button"
                     disabled={!canProceed}
-                    onClick={() => setStep(3)}
-                    className="w-full bg-orange-500 text-white py-2 rounded disabled:bg-gray-300"
+                    onClick={() => navigate('/seller/status', { replace: true })}
+                    className="w-full rounded bg-orange-500 py-2 text-white disabled:bg-gray-300"
                 >
-                  {canProceed ? 'Hoàn thành' : missingMsg}
+                  {canProceed ? 'Xem trạng thái hồ sơ' : missingMsg}
                 </button>
               </div>
           )}

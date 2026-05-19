@@ -22,6 +22,7 @@ import ProfilePage from '@/pages/ProfilePage'
 
 // Seller pages
 import BecomeSellerPage from '@/pages/seller/BecomeSellerPage'
+import SellerStatusPage from '@/pages/seller/SellerStatusPage'
 
 // Cart pages
 import CartPage from '@/pages/CartPage'
@@ -39,10 +40,6 @@ const CheckoutPage = () => <ComingSoon title="Thanh toán" sprint={4} />
 const OrdersPage = () => <ComingSoon title="Đơn hàng" sprint={4} />
 const VouchersPage = () => <ComingSoon title="Voucher" sprint={4} />
 const AddressesPage = () => <ComingSoon title="Địa chỉ" sprint={4} />
-
-const SellerStatusPage = () => (
-    <ComingSoon title="Trạng thái seller" sprint={2} />
-)
 
 const ShopSetupPage = () => (
     <ComingSoon title="Tạo shop" sprint={3} />
@@ -224,6 +221,17 @@ export default function App() {
                 path="*"
                 element={<Navigate to="/" replace />}
             />
+              <Route element={<ProtectedRoute allowedRoles={['user', 'seller', 'admin', 'manager']} />}>
+                  <Route element={<MainLayout />}>
+                      <Route path="profile" element={<ProfilePage />} />
+                      <Route path="cart" element={<CartPage />} />
+                      <Route path="seller/apply" element={<BecomeSellerPage />} />
+                      <Route path="seller/status" element={<SellerStatusPage />} />
+                      <Route path="seller/shop/setup" element={<ShopSetupPage />} />
+                      <Route path="seller/dashboard" element={<SellerDashboardPage />} />
+                      <Route path="seller/products/new" element={<CreateProductPage />} />
+                  </Route>
+              </Route>
 
           </Routes>
         </BrowserRouter>

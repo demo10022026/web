@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import com.ecommerce.util.UploadFolders;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -88,7 +89,8 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
         // Xóa file cũ cùng loại (replace)
         docRepo.deleteBySellerAndDocumentType(profile, docType);
 
-        String url = imageStorage.upload(file, "seller-docs");
+        String folder = UploadFolders.sellerDocument(profile.getSellerId(), docType);
+        String url = imageStorage.upload(file, folder);
 
         SellerDocument doc = SellerDocument.builder()
                 .seller(profile)

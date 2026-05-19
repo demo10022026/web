@@ -44,6 +44,8 @@ public class ImageStorageService {
      * Upload ảnh: ưu tiên local, fallback sang Cloudinary nếu local lỗi
      */
     public String upload(MultipartFile file, String folder) {
+        validateFile(file);
+
         if (useLocal) {
             try {
                 return uploadLocal(file, folder);
@@ -52,6 +54,7 @@ public class ImageStorageService {
                 return uploadCloudinary(file, folder);
             }
         }
+
         return uploadCloudinary(file, folder);
     }
 
@@ -106,5 +109,25 @@ public class ImageStorageService {
     private String getExtension(String filename) {
         if (filename == null || !filename.contains(".")) return ".jpg";
         return filename.substring(filename.lastIndexOf(".")).toLowerCase();
+    }
+
+    private void validateFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("File upload không được để trống");
+        }
+
+        long maxSize = 5L * 1024 * 1024;
+        if (file.getSize() > maxSize) {
+            throw new RuntimeException("File upload tối đa 5MB");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null ||
+                !(contentType.equals("image/jpeg")
+                        || contentType.equals("image/png")
+                        || contentType.equals("image/webp")
+                        || contentType.equals("application/pdf"))) {
+            throw new RuntimeException("Chỉ hỗ trợ JPG, PNG, WEBP hoặc PDF");
+        }
     }
 }

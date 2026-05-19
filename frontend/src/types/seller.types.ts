@@ -1,14 +1,17 @@
-// Trạng thái hồ sơ seller
 export type SellerStatus =
-  | 'none'       // chưa apply
-  | 'pending'    // đang chờ duyệt
-  | 'approved'   // đã duyệt → vào ShopSetupPage
-  | 'rejected'   // bị từ chối → cho nộp lại
-  | 'suspended'  // bị khóa
+    | 'none'
+    | 'pending'
+    | 'approved'
+    | 'rejected'
+    | 'suspended'
 
 export interface SellerDocument {
   documentId: number
-  documentType: 'citizen_id' | 'business_license' | 'tax_document'
+  documentType:
+      | 'citizen_id'
+      | 'citizen_id_back'
+      | 'business_license'
+      | 'tax_document'
   documentUrl: string
   verificationStatus: 'pending' | 'approved' | 'rejected'
   uploadedAt: string
@@ -25,4 +28,8 @@ export interface SellerProfile {
   verifiedAt?: string
   createdAt: string
   documents: SellerDocument[]
+
+  shopId?: number
+  shopName?: string
+  shopSlug?: string
 }
