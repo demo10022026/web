@@ -1,11 +1,14 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
+import type { UserRole } from '@/types/auth.types'
 
-interface Props {
-  allowedRoles?: ('user' | 'admin' | 'manager')[]
+interface ProtectedRouteProps {
+  allowedRoles?: UserRole[]
 }
 
-export default function ProtectedRoute({ allowedRoles }: Props) {
+export default function ProtectedRoute({
+                                         allowedRoles,
+                                       }: ProtectedRouteProps) {
   const { isAuthenticated, user } = useAuthStore()
 
   if (!isAuthenticated) {

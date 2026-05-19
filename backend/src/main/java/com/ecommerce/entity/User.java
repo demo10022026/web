@@ -49,7 +49,7 @@ public class User {
     private LocalDate birthDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('user','admin','manager') DEFAULT 'user'")
+    @Column(columnDefinition = "ENUM('user','seller','admin','manager') DEFAULT 'user'")
     @Builder.Default
     private Role role = Role.user;
 
@@ -80,7 +80,7 @@ public class User {
     // ---- Enums ----
     public enum Gender { male, female, other }
 
-    public enum Role { user, admin, manager }
+    public enum Role { user, seller, admin, manager }
 
     public enum AccountStatus { active, suspended, banned }
 

@@ -206,11 +206,11 @@ export default function SellerStatusPage() {
         setRejection(profile.rejectionReason ?? null)
 
         if (profile.shopId) {
-            setShop({
-                shopId: profile.shopId,
-                shopName: profile.shopName ?? '',
-                shopSlug: profile.shopSlug ?? '',
-            })
+            setShop(
+                profile.shopId,
+                profile.shopName ?? '',
+                profile.shopSlug ?? ''
+            )
         }
     } else if (!isLoading) {
         reset()

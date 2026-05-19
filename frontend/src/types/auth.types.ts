@@ -6,16 +6,15 @@ export interface ApiResponse<T> {
   timestamp: string
 }
 
+export type UserRole = 'user' | 'seller' | 'admin' | 'manager'
+
 export interface UserInfo {
   userId: number
-  username: string
-  fullName: string
   email: string
-  phoneNumber: string
-  avatarUrl?: string
-  role: 'user' | 'admin' | 'manager'
-  emailVerified: boolean
-  phoneVerified: boolean
+  fullName: string
+  phone?: string
+  role: UserRole
+  accountStatus: 'active' | 'inactive' | 'banned'
 }
 
 export interface AuthResponse {
