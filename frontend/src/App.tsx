@@ -25,7 +25,8 @@ import BecomeSellerPage from '@/pages/seller/BecomeSellerPage'
 
 // Admin
 import AdminLayout from '@/components/admin/AdminLayout'
-import AdminDashboardPage from '@/pages/admin/AdminDashboardPage'
+import AdminProductsPage from '@/pages/admin/AdminProductsPage'
+import AdminProductDetailPage from '@/pages/admin/AdminProductDetailPage'
 
 // ─────────────────────────────────────────────────────────────
 // Placeholder pages — xoá khi có file thật
@@ -204,34 +205,14 @@ export default function App() {
               </Route>
             </Route>
 
-            {/* ====================================================
-              ADMIN / MANAGER ROUTES
-          ==================================================== */}
-
-            <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute
-                      allowedRoles={['admin', 'manager']}
-                  />
-                }
-            >
-              <Route element={<AdminLayout />}>
-
-                {/* Dashboard */}
-                <Route
-                    index
-                    element={<AdminDashboardPage />}
-                />
-
-                {/* Future admin routes */}
-                {/* <Route path="users" element={<AdminUsersPage />} /> */}
-                {/* <Route path="sellers" element={<AdminSellersPage />} /> */}
-                {/* <Route path="orders" element={<AdminOrdersPage />} /> */}
-                {/* <Route path="reports" element={<AdminReportsPage />} /> */}
-
+              {/* ── Admin / Manager ── */}
+              <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
+                  <Route path="/admin" element={<AdminLayout />}>
+                      <Route index element={<Navigate to="/admin/products" replace />} />
+                      <Route path="products" element={<AdminProductsPage />} />
+                      <Route path="products/:productId" element={<AdminProductDetailPage />} />
+                  </Route>
               </Route>
-            </Route>
 
             {/* ====================================================
               FALLBACK
