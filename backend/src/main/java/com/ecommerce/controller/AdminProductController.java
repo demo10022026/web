@@ -92,4 +92,14 @@ public class AdminProductController {
                 adminProductService.softDelete(productId)
         );
     }
+
+    @DeleteMapping("/{productId}/permanent")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Void> permanentDelete(
+            @PathVariable Integer productId
+    ) {
+        adminProductService.permanentDelete(productId);
+
+        return ApiResponse.success("Đã xóa vĩnh viễn sản phẩm", null);
+    }
 }

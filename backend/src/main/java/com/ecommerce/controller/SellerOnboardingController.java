@@ -1,4 +1,4 @@
-package com.ecommerce.controller.seller;
+package com.ecommerce.controller;
 
 import com.ecommerce.dto.request.ApplySellerRequest;
 import com.ecommerce.dto.response.SellerProfileResponse;

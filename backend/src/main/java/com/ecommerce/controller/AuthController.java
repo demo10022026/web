@@ -1,4 +1,4 @@
-package com.ecommerce.controller.auth;
+package com.ecommerce.controller;
 
 import com.ecommerce.dto.request.*;
 import com.ecommerce.dto.response.AuthResponse;

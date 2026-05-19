@@ -10,6 +10,7 @@ import {
     Loader2,
     Package,
     Save,
+    ShieldAlert,
     Trash2,
 } from 'lucide-react'
 import { adminProductApi } from '@/api/adminProductApi'
@@ -18,6 +19,7 @@ import type {
     ProductStatus,
 } from '@/types/adminProduct.types'
 import { formatPrice } from '@/utils/mask'
+import { useAuthStore } from '@/store/authStore'
 
 function statusLabel(status: ProductStatus) {
     switch (status) {
@@ -67,6 +69,9 @@ export default function AdminProductDetailPage() {
     const { productId } = useParams<{ productId: string }>()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+
+    const user = useAuthStore((state) => state.user)
+    const isAdmin = user?.role === 'admin'
 
     const id = Number(productId)
 
@@ -143,6 +148,18 @@ export default function AdminProductDetailPage() {
         },
     })
 
+    const permanentDeleteMutation = useMutation({
+        mutationFn: () => adminProductApi.permanentDelete(id),
+        onSuccess: () => {
+            toast.success('Đã xóa vĩnh viễn sản phẩm')
+            queryClient.invalidateQueries({ queryKey: ['adminProducts'] })
+            navigate('/admin/products')
+        },
+        onError: () => {
+            toast.error('Không thể xóa vĩnh viễn sản phẩm')
+        },
+    })
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
 
@@ -202,6 +219,27 @@ export default function AdminProductDetailPage() {
                 </button>
             </div>
         )
+    }
+
+    const handlePermanentDelete = () => {
+        if (!isAdmin) {
+            toast.error('Chỉ admin mới được xóa vĩnh viễn')
+            return
+        }
+
+        const firstConfirm = window.confirm(
+            'Xóa vĩnh viễn sản phẩm này? Hành động này không thể hoàn tác.'
+        )
+
+        if (!firstConfirm) return
+
+        const secondConfirm = window.confirm(
+            `Xác nhận lần cuối: xóa vĩnh viễn "${product?.productName}" khỏi database?`
+        )
+
+        if (!secondConfirm) return
+
+        permanentDeleteMutation.mutate()
     }
 
     // @ts-ignore
@@ -266,6 +304,23 @@ export default function AdminProductDetailPage() {
                         <Trash2 size={17} />
                         Ẩn
                     </button>
+
+                    {isAdmin && (
+                        <button
+                            type="button"
+                            onClick={handlePermanentDelete}
+                            disabled={permanentDeleteMutation.isPending}
+                            className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-70"
+                        >
+                            {permanentDeleteMutation.isPending ? (
+                                <Loader2 size={17} className="animate-spin" />
+                            ) : (
+                                <ShieldAlert size={17} />
+                            )}
+                            Xóa vĩnh viễn
+                        </button>
+                    )}
+
                 </div>
             </div>
 

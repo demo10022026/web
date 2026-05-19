@@ -23,6 +23,9 @@ import ProfilePage from '@/pages/ProfilePage'
 // Seller pages
 import BecomeSellerPage from '@/pages/seller/BecomeSellerPage'
 
+// Cart pages
+import CartPage from '@/pages/CartPage'
+
 // Admin
 import AdminLayout from '@/components/admin/AdminLayout'
 import AdminProductsPage from '@/pages/admin/AdminProductsPage'
@@ -32,7 +35,6 @@ import AdminProductDetailPage from '@/pages/admin/AdminProductDetailPage'
 // Placeholder pages — xoá khi có file thật
 // ─────────────────────────────────────────────────────────────
 
-const CartPage = () => <ComingSoon title="Giỏ hàng" sprint={4} />
 const CheckoutPage = () => <ComingSoon title="Thanh toán" sprint={4} />
 const OrdersPage = () => <ComingSoon title="Đơn hàng" sprint={4} />
 const VouchersPage = () => <ComingSoon title="Voucher" sprint={4} />

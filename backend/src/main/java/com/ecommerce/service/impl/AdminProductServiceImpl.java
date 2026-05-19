@@ -4,6 +4,7 @@ import com.ecommerce.dto.request.AdminProductStatusRequest;
 import com.ecommerce.dto.request.AdminProductUpdateRequest;
 import com.ecommerce.dto.response.AdminProductDetailResponse;
 import com.ecommerce.dto.response.AdminProductResponse;
+import com.ecommerce.repository.FlashSaleRepository;
 import com.ecommerce.entity.*;
 import com.ecommerce.exception.AppException;
 import com.ecommerce.repository.BrandRepository;
@@ -28,6 +29,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
+    private final FlashSaleRepository flashSaleRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -121,6 +123,18 @@ public class AdminProductServiceImpl implements AdminProductService {
 
         return toSummaryResponse(saved);
     }
+
+    @Transactional
+    public void permanentDelete(Integer productId) {
+        Product product = findProduct(productId);
+
+        flashSaleRepository.deleteByProductId(productId);
+
+        productRepository.delete(product);
+
+        log.warn("Admin xóa vĩnh viễn sản phẩm id={}", productId);
+    }
+
 
     private Product findProduct(Integer productId) {
         return productRepository.adminFindById(productId)

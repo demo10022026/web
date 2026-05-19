@@ -1,4 +1,4 @@
-package com.ecommerce.controller.admin;
+package com.ecommerce.controller;
 
 import com.ecommerce.dto.response.DashboardResponse;
 import com.ecommerce.dto.response.NewUsersResponse;

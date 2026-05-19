@@ -1,10 +1,12 @@
 import { useState, useEffect }  from 'react'   // ← thêm useEffect
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery }            from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ShoppingCart, Zap, Star, Store, ChevronRight,
   Minus, Plus, Shield, Truck
 } from 'lucide-react'
+import { cartApi } from '@/api/cartApi'
+import { useCartStore } from '@/store/cartStore'
 import { productApi }    from '@/api/productApi'
 import { useAuthStore }  from '@/store/authStore'
 import { formatPrice }   from '@/utils/mask'
@@ -14,11 +16,30 @@ import type { VariantDto } from '@/types/product.types'
 export default function ProductDetailPage() {
   const { id }      = useParams<{ id: string }>()
   const navigate    = useNavigate()
+  const queryClient = useQueryClient()
+  const setItemCount = useCartStore((state) => state.setItemCount)
   const { isAuthenticated } = useAuthStore()
 
   const [selectedVariant, setSelectedVariant] = useState<VariantDto | null>(null)
   const [quantity,   setQuantity]   = useState(1)
   const [activeImage, setActiveImage] = useState(0)
+
+  //mutantion
+  const addToCartMutation = useMutation({
+    mutationFn: () =>
+        cartApi.addItem({
+          variantId: selectedVariant!.variantId,
+          quantity,
+        }),
+    onSuccess: (data) => {
+      setItemCount(data.totalQuantity || 0)
+      queryClient.setQueryData(['cart'], data)
+      toast.success('Đã thêm vào giỏ hàng')
+    },
+    onError: () => {
+      toast.error('Không thể thêm vào giỏ hàng')
+    },
+  })
 
   // ── Bỏ onSuccess, dùng useEffect thay thế (React Query v5) ──
   const { data: product, isLoading, isError } = useQuery({
@@ -65,10 +86,22 @@ export default function ProductDetailPage() {
   const stock     = selectedVariant?.stockQuantity ?? 0
 
   const handleAddToCart = () => {
-    if (!isAuthenticated) { navigate('/login'); return }
-    if (!selectedVariant)  { toast.error('Vui lòng chọn phân loại'); return }
-    if (stock === 0)        { toast.error('Sản phẩm đã hết hàng'); return }
-    toast.success('Đã thêm vào giỏ hàng!')
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+
+    if (!selectedVariant) {
+      toast.error('Vui lòng chọn phân loại')
+      return
+    }
+
+    if (stock === 0) {
+      toast.error('Sản phẩm đã hết hàng')
+      return
+    }
+
+    addToCartMutation.mutate()
   }
 
   const handleBuyNow = () => {
@@ -221,6 +254,7 @@ export default function ProductDetailPage() {
                 {/* Buttons */}
                 <div className="flex gap-3">
                   <button onClick={handleAddToCart}
+                          disabled={addToCartMutation.isPending}
                           className="flex-1 flex items-center justify-center gap-2 px-4 py-3
                              border-2 border-orange-500 text-orange-500 font-semibold
                              rounded-xl hover:bg-orange-50 transition-colors text-sm">

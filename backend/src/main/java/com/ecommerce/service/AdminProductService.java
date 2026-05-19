@@ -26,4 +26,6 @@ public interface AdminProductService {
     AdminProductResponse updateStatus(Integer productId, AdminProductStatusRequest request);
 
     AdminProductResponse softDelete(Integer productId);
+
+    void permanentDelete(Integer productId);
 }

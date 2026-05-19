@@ -60,4 +60,8 @@ export const adminProductApi = {
 
         return res.data.data!
     },
+
+    permanentDelete: async (productId: number): Promise<void> => {
+        await axiosInstance.delete(`/admin/products/${productId}/permanent`)
+    },
 }
