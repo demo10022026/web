@@ -58,4 +58,36 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         WHERE p.productId = :id AND p.productStatus = 'active'
         """)
     Optional<Product> findActiveWithDetails(@Param("id") Integer id);
+
+    /**  */
+    @Query("""
+        SELECT p FROM Product p
+        LEFT JOIN p.shop s
+        LEFT JOIN p.category c
+        LEFT JOIN p.brand b
+        WHERE (:keyword IS NULL
+               OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(s.shopName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+          AND (:status IS NULL OR p.productStatus = :status)
+          AND (:shopId IS NULL OR s.shopId = :shopId)
+          AND (:categoryId IS NULL OR c.categoryId = :categoryId)
+          AND (:brandId IS NULL OR b.brandId = :brandId)
+    """)
+    Page<Product> adminSearchProducts(
+            @Param("keyword") String keyword,
+            @Param("status") Product.Status status,
+            @Param("shopId") Integer shopId,
+            @Param("categoryId") Integer categoryId,
+            @Param("brandId") Integer brandId,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT p FROM Product p
+        LEFT JOIN FETCH p.shop
+        LEFT JOIN FETCH p.category
+        LEFT JOIN FETCH p.brand
+        WHERE p.productId = :productId
+    """)
+    Optional<Product> adminFindById(@Param("productId") Integer productId);
 }
