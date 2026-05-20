@@ -7,11 +7,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-@Repository
 public interface SellerRepository extends JpaRepository<SellerProfile, Integer> {
 
     Optional<SellerProfile> findByUser(User user);
@@ -64,6 +62,49 @@ public interface SellerRepository extends JpaRepository<SellerProfile, Integer> 
             """
     )
     Page<SellerProfile> searchSellers(
+            @Param("status") SellerProfile.Status status,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query(
+            value = """
+                SELECT sp
+                FROM SellerProfile sp
+                JOIN FETCH sp.user u
+                LEFT JOIN Shop sh ON sh.seller = sp
+                WHERE (:status IS NULL OR sp.verificationStatus = :status)
+                AND (
+                    :keyword IS NULL
+                    OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(sp.identityNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(sp.taxCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(sh.shopName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                )
+                ORDER BY sp.createdAt DESC
+            """,
+            countQuery = """
+                SELECT COUNT(sp)
+                FROM SellerProfile sp
+                JOIN sp.user u
+                LEFT JOIN Shop sh ON sh.seller = sp
+                WHERE (:status IS NULL OR sp.verificationStatus = :status)
+                AND (
+                    :keyword IS NULL
+                    OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(sp.identityNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(sp.taxCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(sh.shopName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                )
+            """
+    )
+    Page<SellerProfile> adminSearchSellers(
             @Param("status") SellerProfile.Status status,
             @Param("keyword") String keyword,
             Pageable pageable

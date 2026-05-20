@@ -16,15 +16,14 @@ const navItems = [
         icon: Store,
     },
     {
-        to: '/admin/products',
-        label: 'Sản phẩm',
-        icon: Package,
-    },
-    {
         to: '/admin/users',
         label: 'Người dùng',
         icon: Users,
-        disabled: true,
+    },
+    {
+        to: '/admin/products',
+        label: 'Sản phẩm',
+        icon: Package,
     },
     {
         to: '/admin/orders',
@@ -48,10 +47,12 @@ export default function AdminLayout() {
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 text-white">
                         <LayoutDashboard size={20} />
                     </div>
+
                     <div>
                         <h1 className="text-base font-bold text-gray-900">
                             Admin
                         </h1>
+
                         <p className="text-xs text-gray-500">ShopVN Console</p>
                     </div>
                 </div>

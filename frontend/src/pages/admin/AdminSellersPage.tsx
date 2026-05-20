@@ -321,7 +321,7 @@ function SellerTable({
 
             {activeStatus === 'approved' && sellers.length > 0 && (
                 <div className="border-t border-gray-100 bg-green-50 px-4 py-3 text-xs text-green-700">
-                    Bảng này là danh sách các seller đang hoạt động.
+                    Danh sách các seller đang hoạt động.
                 </div>
             )}
         </div>
@@ -504,9 +504,6 @@ export default function AdminSellersPage() {
                     <h1 className="text-2xl font-bold text-gray-900">
                         Quản lý người bán
                     </h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Duyệt hồ sơ seller, theo dõi shop đang hoạt động và tạm khóa seller vi phạm.
-                    </p>
                 </div>
             </div>
 

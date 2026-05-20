@@ -227,15 +227,14 @@ export default function AdminProductsPage() {
     }
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-6 p-6">
             <div className="flex items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        Quản lý sản phẩm
-                    </h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Xem, lọc, khóa, ẩn và cập nhật trạng thái sản phẩm.
-                    </p>
+                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">
+                            Quản lý sản phẩm
+                        </h1>
+                    </div>
                 </div>
 
                 <button
