@@ -335,10 +335,6 @@ export default function AdminUsersPage() {
                 <h1 className="text-2xl font-bold text-gray-900">
                     Quản lý người dùng
                 </h1>
-
-                <p className="mt-1 text-sm text-gray-500">
-                    Theo dõi, lọc và khóa/mở tài khoản người dùng trong hệ thống.
-                </p>
             </div>
 
             <div className="mb-5 grid gap-4 md:grid-cols-4">

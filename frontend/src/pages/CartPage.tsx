@@ -156,9 +156,11 @@ export default function CartPage() {
             return
         }
 
-        navigate('/checkout', {
+        const cartItemIds = selectedItems.map((item) => item.cartItemId)
+
+        navigate(`/checkout?items=${cartItemIds.join(',')}`, {
             state: {
-                cartItemIds: selectedItems.map((item) => item.cartItemId),
+                cartItemIds,
             },
         })
     }
@@ -406,9 +408,6 @@ export default function CartPage() {
                             Mua hàng
                         </button>
 
-                        <p className="mt-3 text-center text-xs text-gray-400">
-                            Checkout sẽ làm ở bước tiếp theo.
-                        </p>
                     </aside>
                 </div>
             </div>

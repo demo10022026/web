@@ -9,7 +9,6 @@ import {
     KeyRound,
     Loader2,
     Mail,
-    Phone,
     Save,
     Shield,
     Store,
@@ -458,13 +457,22 @@ export default function AdminUserDetailPage() {
                                     className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
                                 >
                                     <option value="user">User</option>
-                                    <option value="seller">Seller</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="admin">Admin</option>
+
+                                    {user.role !== 'seller' && !user.hasSellerProfile && (
+                                        <option value="manager">Manager</option>
+                                    )}
+
+                                    {user.role === 'seller' && (
+                                        <option value="seller">Seller</option>
+                                    )}
+
+                                    {user.role === 'admin' && (
+                                        <option value="admin">Admin</option>
+                                    )}
                                 </select>
 
                                 <p className="mt-2 text-xs text-gray-500">
-                                    Chỉ admin được đổi vai trò. Hệ thống chỉ cho phép có 1 admin duy nhất.
+                                    Chỉ admin được đổi vai trò.
                                 </p>
 
                                 <button

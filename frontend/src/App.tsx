@@ -19,12 +19,25 @@ import { FlashSalePage } from '@/pages/FlashSalePage'
 
 // User pages
 import ProfilePage from '@/pages/ProfilePage'
+import OrdersPage from '@/pages/OrdersPage'
+import AddressesPage from '@/pages/AddressesPage'
+import ShopPage from '@/pages/ShopPage'
+import VouchersPage from '@/pages/VouchersPage'
+import CheckoutPage from '@/pages/CheckoutPage'
 
 // Seller pages
 import BecomeSellerPage from '@/pages/seller/BecomeSellerPage'
 import SellerStatusPage from '@/pages/seller/SellerStatusPage'
 import SellerProtectedRoute from '@/components/ui/SellerProtectedRoute'
 import ShopSetupPage from '@/pages/seller/ShopSetupPage'
+import SellerDashboardPage from '@/pages/seller/SellerDashboardPage'
+import CreateProductPage from '@/pages/seller/CreateProductPage'
+import SellerProductsPage from '@/pages/seller/SellerProductsPage'
+import EditProductPage from '@/pages/seller/EditProductPage'
+import SellerOrdersPage from '@/pages/seller/SellerOrdersPage'
+import SellerAnalyticsPage from '@/pages/seller/SellerAnalyticsPage'
+import EditShopPage from '@/pages/seller/EditShopPage'
+import SellerVouchersPage from '@/pages/seller/SellerVouchersPage'
 
 // Cart pages
 import CartPage from '@/pages/CartPage'
@@ -37,37 +50,6 @@ import AdminSellersPage from '@/pages/admin/AdminSellersPage'
 import AdminSellerDetailPage from '@/pages/admin/AdminSellerDetailPage'
 import AdminUsersPage from '@/pages/admin/AdminUsersPage'
 import AdminUserDetailPage from '@/pages/admin/AdminUserDetailPage'
-
-// Placeholder pages
-const CheckoutPage = () => <ComingSoon title="Thanh toán" sprint={4} />
-const OrdersPage = () => <ComingSoon title="Đơn hàng" sprint={4} />
-const VouchersPage = () => <ComingSoon title="Voucher" sprint={4} />
-const AddressesPage = () => <ComingSoon title="Địa chỉ" sprint={4} />
-
-const SellerDashboardPage = () => <ComingSoon title="Seller dashboard" sprint={3} />
-const CreateProductPage = () => <ComingSoon title="Thêm sản phẩm" sprint={4} />
-
-function ComingSoon({
-                        title,
-                        sprint,
-                    }: {
-    title: string
-    sprint: number
-}) {
-    return (
-        <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center">
-            <span className="mb-4 text-4xl">🚧</span>
-
-            <h2 className="mb-1 text-lg font-semibold text-gray-700">
-                {title}
-            </h2>
-
-            <p className="text-sm text-gray-400">
-                Tính năng này sẽ có ở Sprint {sprint}
-            </p>
-        </div>
-    )
-}
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -99,7 +81,9 @@ export default function App() {
                     {/* User authenticated */}
                     <Route
                         element={
-                            <ProtectedRoute allowedRoles={['user', 'seller', 'admin', 'manager']} />
+                            <ProtectedRoute
+                                allowedRoles={['user', 'seller', 'admin', 'manager']}
+                            />
                         }
                     >
                         <Route element={<MainLayout />}>
@@ -110,6 +94,9 @@ export default function App() {
                             <Route path="/orders" element={<OrdersPage />} />
                             <Route path="/vouchers" element={<VouchersPage />} />
                             <Route path="/addresses" element={<AddressesPage />} />
+                            <Route path="/user/addresses" element={<AddressesPage />} />
+                            <Route path="/shops/:shopSlugOrId" element={<ShopPage />} />
+                            <Route path="/shop/:shopSlugOrId" element={<ShopPage />} />
 
                             <Route path="/become-seller" element={<BecomeSellerPage />} />
                             <Route path="/seller/apply" element={<BecomeSellerPage />} />
@@ -121,26 +108,30 @@ export default function App() {
                     <Route element={<SellerProtectedRoute />}>
                         <Route element={<MainLayout />}>
                             <Route path="/seller/shop/setup" element={<ShopSetupPage />} />
+                            <Route path="/seller/shop/profile" element={<EditShopPage />} />
                             <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
+                            <Route path="/seller/products" element={<SellerProductsPage />} />
                             <Route path="/seller/products/new" element={<CreateProductPage />} />
+                            <Route path="/seller/products/:id/edit" element={<EditProductPage />} />
+                            <Route path="/seller/orders" element={<SellerOrdersPage />} />
+                            <Route path="/seller/analytics" element={<SellerAnalyticsPage />} />
+                            <Route path="/seller/vouchers" element={<SellerVouchersPage />} />
                         </Route>
                     </Route>
 
                     {/* Admin / Manager */}
                     <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
-                        <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
-                            <Route path="/admin" element={<AdminLayout />}>
-                                <Route index element={<Navigate to="/admin/sellers" replace />} />
-
-                                <Route path="sellers" element={<AdminSellersPage />} />
-                                <Route path="sellers/:sellerId" element={<AdminSellerDetailPage />} />
+                        <Route path="/admin" element={<AdminLayout />}>
+                            <Route index element={<Navigate to="/admin/sellers" replace />} />
 
                             <Route path="users" element={<AdminUsersPage />} />
                             <Route path="users/:userId" element={<AdminUserDetailPage />} />
 
-                                <Route path="products" element={<AdminProductsPage />} />
-                                <Route path="products/:productId" element={<AdminProductDetailPage />} />
-                            </Route>
+                            <Route path="sellers" element={<AdminSellersPage />} />
+                            <Route path="sellers/:sellerId" element={<AdminSellerDetailPage />} />
+
+                            <Route path="products" element={<AdminProductsPage />} />
+                            <Route path="products/:productId" element={<AdminProductDetailPage />} />
                         </Route>
                     </Route>
 

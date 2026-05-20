@@ -342,7 +342,29 @@ public class AdminUserServiceImpl implements AdminUserService {
             );
         }
 
+        if (
+                target.getRole() == User.Role.seller
+                        && nextRole == User.Role.manager
+        ) {
+            throw new AppException(
+                    "Tài khoản seller không thể chuyển thành manager",
+                    HttpStatus.BAD_REQUEST,
+                    "SELLER_CANNOT_BECOME_MANAGER"
+            );
+        }
+
         long adminCount = userRepo.countByRole(User.Role.admin);
+
+        if (
+                target.getRole() == User.Role.seller
+                        && nextRole == User.Role.manager
+        ) {
+            throw new AppException(
+                    "Tài khoản seller không thể chuyển thành manager",
+                    HttpStatus.BAD_REQUEST,
+                    "SELLER_CANNOT_BECOME_MANAGER"
+            );
+        }
 
         if (nextRole == User.Role.admin && target.getRole() != User.Role.admin) {
             if (adminCount > 0) {
