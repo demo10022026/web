@@ -86,7 +86,7 @@ function conditionText(voucher: Voucher) {
         parts.push(`Tối đa ${formatMoney(voucher.maxDiscountAmount)}`)
     }
 
-    if (voucher.perUserLimit > 0) {
+    if ((voucher.perUserLimit ?? 0) > 0) {
         parts.push(`Mỗi tài khoản ${voucher.perUserLimit} lượt`)
     }
 
@@ -95,13 +95,27 @@ function conditionText(voucher: Voucher) {
 
 function scopeText(voucher: Voucher) {
     if (voucher.scope === 'shop') {
-        return voucher.shopName ? `Voucher shop: ${voucher.shopName}` : 'Voucher shop'
+        return voucher.shopName
+            ? `Voucher shop: ${voucher.shopName}`
+            : 'Voucher shop'
     }
 
     return 'Voucher toàn sàn'
 }
 
+function getShopPath(voucher: Voucher) {
+    if (voucher.scope !== 'shop') return null
+
+    const shopKey = voucher.shopSlug || voucher.shopId
+
+    if (!shopKey) return null
+
+    return `/shops/${shopKey}`
+}
+
 function isExpiredSoon(voucher: Voucher) {
+    if (!voucher.endTime) return false
+
     const end = new Date(voucher.endTime).getTime()
     const now = Date.now()
     const diff = end - now
@@ -109,9 +123,51 @@ function isExpiredSoon(voucher: Voucher) {
     return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
 }
 
+function canSaveVoucher(voucher: Voucher) {
+    if (voucher.saved) return false
+
+    // @ts-ignore
+    if (
+        voucher.voucherStatus === 'inactive' ||
+        voucher.voucherStatus === 'expired' ||
+        voucher.voucherStatus === 'used_out' ||
+        voucher.voucherStatus === 'upcoming'
+    ) {
+        return false
+    }
+
+    const usageLimit = voucher.usageLimit ?? 0
+    const usedCount = voucher.usedCount ?? 0
+
+    if (usageLimit > 0 && usedCount >= usageLimit) {
+        return false
+    }
+
+    const perUserLimit = voucher.perUserLimit ?? 0
+    const userUsedCount = voucher.userUsedCount ?? 0
+
+    if (perUserLimit > 0 && userUsedCount >= perUserLimit) {
+        return false
+    }
+
+    return true
+}
+
+function isVoucherVisuallyUsable(voucher: Voucher) {
+    if (
+        voucher.voucherStatus === 'inactive' ||
+        voucher.voucherStatus === 'expired' ||
+        voucher.voucherStatus === 'used_out'
+    ) {
+        return false
+    }
+
+    return true
+}
+
 function EmptyState({
-    mode,
-}: {
+                        mode,
+                    }: {
     mode: MainTab
 }) {
     return (
@@ -134,13 +190,13 @@ function EmptyState({
 }
 
 function VoucherCard({
-    voucher,
-    mode,
-    onSave,
-    onRemove,
-    saving,
-    removing,
-}: {
+                         voucher,
+                         mode,
+                         onSave,
+                         onRemove,
+                         saving,
+                         removing,
+                     }: {
     voucher: Voucher
     mode: MainTab
     onSave: (voucher: Voucher) => void
@@ -148,6 +204,9 @@ function VoucherCard({
     saving: boolean
     removing: boolean
 }) {
+    const canSave = canSaveVoucher(voucher)
+    const visuallyUsable = isVoucherVisuallyUsable(voucher)
+
     const copyCode = async () => {
         try {
             await navigator.clipboard.writeText(voucher.code)
@@ -161,7 +220,9 @@ function VoucherCard({
         <div
             className={[
                 'overflow-hidden rounded-2xl border bg-white shadow-sm',
-                voucher.usable ? 'border-gray-100' : 'border-gray-200 opacity-75',
+                visuallyUsable
+                    ? 'border-gray-100'
+                    : 'border-gray-200 opacity-75',
             ].join(' ')}
         >
             <div className="grid grid-cols-[120px_1fr] md:grid-cols-[160px_1fr]">
@@ -220,33 +281,42 @@ function VoucherCard({
                                 <ShoppingBag size={14} />
                             )}
 
-                            <span>{scopeText(voucher)}</span>
+                            {voucher.scope === 'shop' && getShopPath(voucher) ? (
+                                <Link
+                                    to={getShopPath(voucher)!}
+                                    className="font-medium text-orange-600 hover:underline"
+                                >
+                                    {voucher.shopName
+                                        ? `Voucher shop: ${voucher.shopName}`
+                                        : 'Voucher shop'}
+                                </Link>
+                            ) : (
+                                <span>{scopeText(voucher)}</span>
+                            )}
                         </div>
 
-                        <div>
-                            Hết hạn: {formatDate(voucher.endTime)}
-                        </div>
+                        <div>Hết hạn: {formatDate(voucher.endTime)}</div>
 
                         <div>
-                            Đã dùng: {voucher.usedCount}
+                            Đã dùng: {voucher.usedCount ?? 0}
                             {voucher.usageLimit
                                 ? ` / ${voucher.usageLimit}`
                                 : ''}
                         </div>
 
                         <div>
-                            Lượt của bạn: {voucher.userUsedCount} /{' '}
-                            {voucher.perUserLimit}
+                            Lượt của bạn: {voucher.userUsedCount ?? 0} /{' '}
+                            {voucher.perUserLimit ?? 1}
                         </div>
                     </div>
 
-                    {isExpiredSoon(voucher) && voucher.usable && (
+                    {isExpiredSoon(voucher) && visuallyUsable && (
                         <div className="mt-3 rounded-xl bg-yellow-50 px-3 py-2 text-xs text-yellow-700">
                             Voucher sắp hết hạn.
                         </div>
                     )}
 
-                    {!voucher.usable && voucher.unavailableReason && (
+                    {!visuallyUsable && voucher.unavailableReason && (
                         <div className="mt-3 rounded-xl bg-gray-100 px-3 py-2 text-xs text-gray-600">
                             {voucher.unavailableReason}
                         </div>
@@ -281,24 +351,23 @@ function VoucherCard({
                             {mode === 'available' ? (
                                 <button
                                     type="button"
-                                    disabled={
-                                        voucher.saved ||
-                                        !voucher.usable ||
-                                        saving
-                                    }
+                                    disabled={saving || !canSave}
                                     onClick={() => onSave(voucher)}
                                     className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {voucher.saved
                                         ? 'Đã lưu'
                                         : saving
-                                          ? 'Đang lưu...'
-                                          : 'Lưu voucher'}
+                                            ? 'Đang lưu...'
+                                            : 'Lưu voucher'}
                                 </button>
                             ) : (
                                 <button
                                     type="button"
-                                    disabled={removing || voucher.userUsedCount > 0}
+                                    disabled={
+                                        removing ||
+                                        (voucher.userUsedCount ?? 0) > 0
+                                    }
                                     onClick={() => onRemove(voucher)}
                                     className="inline-flex items-center gap-1 rounded-xl border border-red-100 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
@@ -571,8 +640,14 @@ export default function VouchersPage() {
                             mode={mainTab}
                             onSave={handleSave}
                             onRemove={handleRemove}
-                            saving={saveMutation.isPending}
-                            removing={removeMutation.isPending}
+                            saving={
+                                saveMutation.isPending &&
+                                saveMutation.variables === voucher.voucherId
+                            }
+                            removing={
+                                removeMutation.isPending &&
+                                removeMutation.variables === voucher.voucherId
+                            }
                         />
                     ))}
                 </div>

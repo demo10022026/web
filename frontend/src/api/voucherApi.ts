@@ -3,7 +3,12 @@ import type { ApiResponse } from '@/types/auth.types'
 
 export type VoucherDiscountType = 'fixed' | 'percent'
 export type VoucherScope = 'platform' | 'shop'
-export type VoucherStatus = 'active' | 'inactive'
+export type VoucherStatus =
+    | 'active'
+    | 'inactive'
+    | 'upcoming'
+    | 'expired'
+    | 'used_out'
 
 export interface Voucher {
     voucherId: number

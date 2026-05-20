@@ -346,6 +346,17 @@ export default function Header() {
                                           Thêm sản phẩm
                                         </Link>
                                     )}
+
+                                    {currentShopId && (
+                                        <Link
+                                            to="/seller/vouchers"
+                                            onClick={() => setDropdownOpen(false)}
+                                            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 hover:bg-orange-50"
+                                        >
+                                          <Package className="h-4 w-4 text-gray-400" />
+                                          Quản lý vouchers
+                                        </Link>
+                                    )}
                                   </>
                               )}
                             </div>
