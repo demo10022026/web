@@ -18,6 +18,9 @@ public class ProductImage {
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 
+    @Column(name = "public_id")
+    private String publicId;
+
     @Column(name = "is_thumbnail")
     @Builder.Default
     private Boolean isThumbnail = false;

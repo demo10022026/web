@@ -3,7 +3,9 @@ package com.ecommerce.service.impl;
 import com.ecommerce.dto.response.ProductDtos;
 import com.ecommerce.entity.*;
 import com.ecommerce.exception.AppException;
-import com.ecommerce.repository.*;
+import com.ecommerce.repository.CategoryRepository;
+import com.ecommerce.repository.FlashSaleRepository;
+import com.ecommerce.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -25,152 +27,283 @@ public class ProductServiceImpl {
     // ---- Trang chủ ----
 
     public List<ProductDtos.ProductSummary> getNewProducts(int limit) {
-        Pageable p = PageRequest.of(0, limit);
+        Pageable pageable = PageRequest.of(0, limit);
+
         return productRepository
-            .findByProductStatusOrderByCreatedAtDesc(Product.Status.active, p)
-            .stream().map(this::toSummary).collect(Collectors.toList());
+                .findByProductStatusOrderByCreatedAtDesc(
+                        Product.Status.active,
+                        pageable
+                )
+                .stream()
+                .map(this::toSummary)
+                .collect(Collectors.toList());
     }
 
     public List<ProductDtos.ProductSummary> getBestSellers(int limit) {
-        Pageable p = PageRequest.of(0, limit);
+        Pageable pageable = PageRequest.of(0, limit);
+
         return productRepository
-            .findByProductStatusOrderBySoldCountDesc(Product.Status.active, p)
-            .stream().map(this::toSummary).collect(Collectors.toList());
+                .findByProductStatusOrderBySoldCountDesc(
+                        Product.Status.active,
+                        pageable
+                )
+                .stream()
+                .map(this::toSummary)
+                .collect(Collectors.toList());
     }
 
     public List<ProductDtos.FlashSaleProduct> getFlashSaleProducts(int limit) {
-        Pageable p = PageRequest.of(0, limit);
+        Pageable pageable = PageRequest.of(0, limit);
+
         return flashSaleRepository
-            .findActiveFlashSales(LocalDateTime.now(), p)
-            .stream().map(this::toFlashSale).collect(Collectors.toList());
+                .findActiveFlashSales(LocalDateTime.now(), pageable)
+                .stream()
+                .map(this::toFlashSale)
+                .collect(Collectors.toList());
     }
 
     // ---- Tìm kiếm / lọc ----
 
     public Page<ProductDtos.ProductSummary> searchProducts(
-            String keyword, Integer categoryId, Integer brandId,
-            Long minPrice, Long maxPrice, String sort, int page, int size) {
+            String keyword,
+            Integer parentCategoryId,
+            Integer categoryId,
+            Integer brandId,
+            String shopName,
+            String brandName,
+            Long minPrice,
+            Long maxPrice,
+            String sort,
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 60);
 
-        Sort sortObj = switch (sort == null ? "newest" : sort) {
-            case "price_asc"   -> Sort.by("id").ascending();  // proxy sort
-            case "price_desc"  -> Sort.by("id").descending();
-            case "bestseller"  -> Sort.by("soldCount").descending();
-            default            -> Sort.by("createdAt").descending();
-        };
-        Pageable pageable = PageRequest.of(page, size, sortObj);
+        String safeSort = normalizeSort(sort);
+
+        Pageable pageable = PageRequest.of(safePage, safeSize);
 
         return productRepository
-            .filterProducts(keyword, categoryId, brandId, minPrice, maxPrice, pageable)
-            .map(this::toSummary);
+                .searchProductsForUser(
+                        normalizeText(keyword),
+                        parentCategoryId,
+                        categoryId,
+                        brandId,
+                        normalizeText(shopName),
+                        normalizeText(brandName),
+                        minPrice,
+                        maxPrice,
+                        safeSort,
+                        pageable
+                )
+                .map(this::toSummary);
+    }
+
+    // Giữ method cũ để code cũ không vỡ nếu ProductController đang gọi bản cũ.
+    public Page<ProductDtos.ProductSummary> searchProducts(
+            String keyword,
+            Integer categoryId,
+            Integer brandId,
+            Long minPrice,
+            Long maxPrice,
+            String sort,
+            int page,
+            int size
+    ) {
+        return searchProducts(
+                keyword,
+                null,
+                categoryId,
+                brandId,
+                null,
+                null,
+                minPrice,
+                maxPrice,
+                sort,
+                page,
+                size
+        );
     }
 
     // ---- Chi tiết sản phẩm ----
 
     public ProductDtos.ProductDetail getProductDetail(Integer productId) {
-        Product p = productRepository.findActiveWithDetails(productId)
-            .orElseThrow(() -> AppException.notFound("Sản phẩm"));
-        return toDetail(p);
+        Product product = productRepository.findActiveWithDetails(productId)
+                .orElseThrow(() -> AppException.notFound("Sản phẩm"));
+
+        return toDetail(product);
     }
 
     // ---- Categories ----
 
     public List<ProductDtos.CategoryDto> getCategoryTree() {
-        return categoryRepository.findRootCategories().stream()
-            .map(this::toCategoryDto).collect(Collectors.toList());
+        return categoryRepository.findRootCategories()
+                .stream()
+                .map(this::toCategoryDto)
+                .collect(Collectors.toList());
     }
 
     // =========================================================
     // Mappers
     // =========================================================
 
-    private ProductDtos.ProductSummary toSummary(Product p) {
-        var minVariant = p.getVariants().stream()
-            .filter(v -> v.getStockQuantity() > 0)
-            .min((a, b) -> a.getPrice().compareTo(b.getPrice()))
-            .orElse(p.getVariants().isEmpty() ? null : p.getVariants().get(0));
+    private ProductDtos.ProductSummary toSummary(Product product) {
+        ProductVariant minVariant = product.getVariants()
+                .stream()
+                .filter(v -> v.getStockQuantity() != null && v.getStockQuantity() > 0)
+                .min((a, b) -> a.getPrice().compareTo(b.getPrice()))
+                .orElse(
+                        product.getVariants().isEmpty()
+                                ? null
+                                : product.getVariants().get(0)
+                );
 
         return ProductDtos.ProductSummary.builder()
-            .productId(p.getProductId())
-            .productName(p.getProductName())
-            .thumbnailUrl(p.getThumbnailUrl())
-            .price(minVariant != null ? minVariant.getPrice() : null)
-            .originalPrice(minVariant != null ? minVariant.getOriginalPrice() : null)
-            .discountPercent(p.getMaxDiscountPercent())
-            .soldCount(p.getSoldCount())
-            .averageRating(p.getAverageRating())
-            .shopName(p.getShop() != null ? p.getShop().getShopName() : null)
-            .shopId(p.getShop() != null ? p.getShop().getShopId() : null)
-            .categoryName(p.getCategory() != null ? p.getCategory().getCategoryName() : null)
-            .build();
+                .productId(product.getProductId())
+                .productName(product.getProductName())
+                .thumbnailUrl(product.getThumbnailUrl())
+                .price(minVariant != null ? minVariant.getPrice() : null)
+                .originalPrice(minVariant != null ? minVariant.getOriginalPrice() : null)
+                .discountPercent(product.getMaxDiscountPercent())
+                .soldCount(product.getSoldCount())
+                .averageRating(product.getAverageRating())
+                .shopName(
+                        product.getShop() != null
+                                ? product.getShop().getShopName()
+                                : null
+                )
+                .shopId(
+                        product.getShop() != null
+                                ? product.getShop().getShopId()
+                                : null
+                )
+                .categoryName(
+                        product.getCategory() != null
+                                ? product.getCategory().getCategoryName()
+                                : null
+                )
+                .build();
     }
 
-    private ProductDtos.ProductDetail toDetail(Product p) {
-        List<String> imageUrls = p.getImages().stream()
-            .map(ProductImage::getImageUrl).collect(Collectors.toList());
+    private ProductDtos.ProductDetail toDetail(Product product) {
+        List<String> imageUrls = product.getImages()
+                .stream()
+                .map(ProductImage::getImageUrl)
+                .collect(Collectors.toList());
 
-        List<ProductDtos.VariantDto> variants = p.getVariants().stream()
-            .map(v -> ProductDtos.VariantDto.builder()
-                .variantId(v.getVariantId())
-                .variantName(v.getVariantName())
-                .sku(v.getSku())
-                .price(v.getPrice())
-                .originalPrice(v.getOriginalPrice())
-                .discountPercent(v.getDiscountPercent())
-                .stockQuantity(v.getStockQuantity())
-                .imageUrl(v.getImageUrl())
-                .build())
-            .collect(Collectors.toList());
+        List<ProductDtos.VariantDto> variants = product.getVariants()
+                .stream()
+                .map(v -> ProductDtos.VariantDto.builder()
+                        .variantId(v.getVariantId())
+                        .variantName(v.getVariantName())
+                        .sku(v.getSku())
+                        .price(v.getPrice())
+                        .originalPrice(v.getOriginalPrice())
+                        .discountPercent(v.getDiscountPercent())
+                        .stockQuantity(v.getStockQuantity())
+                        .imageUrl(v.getImageUrl())
+                        .build())
+                .collect(Collectors.toList());
 
         ProductDtos.ShopInfo shopInfo = null;
-        if (p.getShop() != null) {
-            Shop s = p.getShop();
+
+        if (product.getShop() != null) {
+            Shop shop = product.getShop();
+
             shopInfo = ProductDtos.ShopInfo.builder()
-                .shopId(s.getShopId()).shopName(s.getShopName())
-                .shopSlug(s.getShopSlug()).avatarUrl(s.getAvatarUrl())
-                .rating(s.getRating()).followerCount(s.getFollowerCount())
-                .build();
+                    .shopId(shop.getShopId())
+                    .shopName(shop.getShopName())
+                    .shopSlug(shop.getShopSlug())
+                    .avatarUrl(shop.getAvatarUrl())
+                    .rating(shop.getRating())
+                    .followerCount(shop.getFollowerCount())
+                    .build();
         }
 
         return ProductDtos.ProductDetail.builder()
-            .productId(p.getProductId())
-            .productName(p.getProductName())
-            .description(p.getDescription())
-            .thumbnailUrl(p.getThumbnailUrl())
-            .images(imageUrls)
-            .variants(variants)
-            .soldCount(p.getSoldCount())
-            .averageRating(p.getAverageRating())
-            .shop(shopInfo)
-            .categoryName(p.getCategory() != null ? p.getCategory().getCategoryName() : null)
-            .brandName(p.getBrand() != null ? p.getBrand().getBrandName() : null)
-            .createdAt(p.getCreatedAt())
-            .build();
+                .productId(product.getProductId())
+                .productName(product.getProductName())
+                .description(product.getDescription())
+                .thumbnailUrl(product.getThumbnailUrl())
+                .images(imageUrls)
+                .variants(variants)
+                .soldCount(product.getSoldCount())
+                .averageRating(product.getAverageRating())
+                .shop(shopInfo)
+                .categoryName(
+                        product.getCategory() != null
+                                ? product.getCategory().getCategoryName()
+                                : null
+                )
+                .brandName(
+                        product.getBrand() != null
+                                ? product.getBrand().getBrandName()
+                                : null
+                )
+                .createdAt(product.getCreatedAt())
+                .build();
     }
 
-    private ProductDtos.FlashSaleProduct toFlashSale(FlashSaleItem f) {
-        Product p = f.getProduct();
-        var firstVariant = p.getVariants().isEmpty() ? null : p.getVariants().get(0);
+    private ProductDtos.FlashSaleProduct toFlashSale(FlashSaleItem item) {
+        Product product = item.getProduct();
+
+        ProductVariant firstVariant = product.getVariants().isEmpty()
+                ? null
+                : product.getVariants().get(0);
+
         return ProductDtos.FlashSaleProduct.builder()
-            .productId(p.getProductId())
-            .productName(p.getProductName())
-            .thumbnailUrl(p.getThumbnailUrl())
-            .salePrice(f.getSalePrice())
-            .originalPrice(firstVariant != null ? firstVariant.getOriginalPrice() : null)
-            .discountPercent(f.getDiscountPercent().intValue())
-            .quantityLimit(f.getQuantityLimit())
-            .quantitySold(f.getQuantitySold())
-            .remainingPercent(f.getRemainingPercent())
-            .endTime(f.getEndTime())
-            .build();
+                .productId(product.getProductId())
+                .productName(product.getProductName())
+                .thumbnailUrl(product.getThumbnailUrl())
+                .salePrice(item.getSalePrice())
+                .originalPrice(
+                        firstVariant != null
+                                ? firstVariant.getOriginalPrice()
+                                : null
+                )
+                .discountPercent(item.getDiscountPercent().intValue())
+                .quantityLimit(item.getQuantityLimit())
+                .quantitySold(item.getQuantitySold())
+                .remainingPercent(item.getRemainingPercent())
+                .endTime(item.getEndTime())
+                .build();
     }
 
-    private ProductDtos.CategoryDto toCategoryDto(Category c) {
-        List<ProductDtos.CategoryDto> children = c.getChildren() == null ? List.of() :
-            c.getChildren().stream().map(this::toCategoryDto).collect(Collectors.toList());
+    private ProductDtos.CategoryDto toCategoryDto(Category category) {
+        List<ProductDtos.CategoryDto> children =
+                category.getChildren() == null
+                        ? List.of()
+                        : category.getChildren()
+                        .stream()
+                        .map(this::toCategoryDto)
+                        .collect(Collectors.toList());
+
         return ProductDtos.CategoryDto.builder()
-            .categoryId(c.getCategoryId())
-            .categoryName(c.getCategoryName())
-            .children(children)
-            .build();
+                .categoryId(category.getCategoryId())
+                .categoryName(category.getCategoryName())
+                .children(children)
+                .build();
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeSort(String sort) {
+        if (sort == null || sort.trim().isEmpty()) {
+            return "newest";
+        }
+
+        return switch (sort.trim()) {
+            case "price_asc", "price_desc", "bestseller" -> sort.trim();
+            default -> "newest";
+        };
     }
 }

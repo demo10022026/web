@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import com.ecommerce.util.UploadFolders;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -82,15 +83,21 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
     public SellerProfileResponse.DocumentResponse uploadDocument(
             String userEmail,
             SellerDocument.DocType docType,
-            MultipartFile file) {
-
+            MultipartFile file
+    ) {
         SellerProfile profile = findProfile(userEmail);
 
-        // Xóa file cũ cùng loại (replace)
-        docRepo.deleteBySellerAndDocumentType(profile, docType);
+        validateCanChangeDocument(profile);
+        validateDocumentChangeLimit(profile, docType);
 
         String folder = UploadFolders.sellerDocument(profile.getSellerId(), docType);
+
+        // Upload file mới trước.
+        // Nếu upload lỗi thì không mất giấy tờ cũ.
         String url = imageStorage.upload(file, folder);
+
+        // Sau khi upload thành công mới xóa bản cũ cùng loại.
+        docRepo.deleteBySellerAndDocumentType(profile, docType);
 
         SellerDocument doc = SellerDocument.builder()
                 .seller(profile)
@@ -99,7 +106,16 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
                 .verificationStatus(SellerDocument.VerifyStatus.pending)
                 .build();
 
-        log.info("Seller {} upload {} thành công", userEmail, docType);
+        // Nếu hồ sơ từng bị từ chối, user thay giấy tờ thì đưa về chờ duyệt lại.
+        if (profile.getVerificationStatus() == SellerProfile.Status.rejected) {
+            profile.setVerificationStatus(SellerProfile.Status.pending);
+            profile.setRejectionReason(null);
+            profile.setVerifiedAt(null);
+            sellerRepo.save(profile);
+        }
+
+        log.info("Seller {} thay đổi/upload {} thành công", userEmail, docType);
+
         return toDocResponse(docRepo.save(doc));
     }
 
@@ -156,5 +172,45 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
                 .verificationStatus(d.getVerificationStatus().name())
                 .uploadedAt(d.getUploadedAt())
                 .build();
+    }
+
+    private void validateCanChangeDocument(SellerProfile profile) {
+        if (profile.getVerificationStatus() == SellerProfile.Status.approved) {
+            throw new AppException(
+                    "Hồ sơ đã được duyệt, không thể thay đổi giấy tờ",
+                    HttpStatus.CONFLICT,
+                    "SELLER_ALREADY_APPROVED"
+            );
+        }
+
+        if (profile.getVerificationStatus() == SellerProfile.Status.suspended) {
+            throw new AppException(
+                    "Tài khoản seller đang bị tạm khóa",
+                    HttpStatus.FORBIDDEN,
+                    "SELLER_SUSPENDED"
+            );
+        }
+    }
+
+    private void validateDocumentChangeLimit(
+            SellerProfile profile,
+            SellerDocument.DocType docType
+    ) {
+        docRepo.findFirstBySellerAndDocumentTypeOrderByUploadedAtDesc(profile, docType)
+                .ifPresent(existing -> {
+                    if (existing.getUploadedAt() == null) {
+                        return;
+                    }
+
+                    LocalDateTime nextAllowedAt = existing.getUploadedAt().plusDays(1);
+
+                    if (LocalDateTime.now().isBefore(nextAllowedAt)) {
+                        throw new AppException(
+                                "Mỗi loại giấy tờ chỉ được thay đổi 1 lần trong 24 giờ. Vui lòng thử lại sau.",
+                                HttpStatus.TOO_MANY_REQUESTS,
+                                "DOCUMENT_CHANGE_LIMIT"
+                        );
+                    }
+                });
     }
 }

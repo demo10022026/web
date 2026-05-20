@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -25,6 +26,7 @@ import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/authStore'
 import { useSellerStore } from '@/store/sellerStore'
 import { authApi } from '@/api/authApi'
+import { sellerShopApi } from '@/api/sellerShopApi'
 import OtpModal from '@/components/ui/OtpModal'
 import { maskEmail, maskPhone } from '@/utils/mask'
 
@@ -43,16 +45,39 @@ const pwSchema = z
 
 type PwForm = z.infer<typeof pwSchema>
 
-// ── Seller Status Card ───────────────────────────────────────────
 function SellerCard() {
   const { user } = useAuthStore()
-  const { status, shopId, shopName, rejectionReason } = useSellerStore()
+
+  const {
+    status,
+    shopId,
+    shopName,
+    rejectionReason,
+    setShop,
+  } = useSellerStore()
 
   const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager'
+
+  const { data: myShop } = useQuery({
+    queryKey: ['sellerMyShop'],
+    queryFn: sellerShopApi.getMyShop,
+    enabled: !!user && !isAdminOrManager && status === 'approved',
+    retry: false,
+    staleTime: 0,
+  })
+
+  useEffect(() => {
+    if (myShop) {
+      setShop(myShop.shopId, myShop.shopName, myShop.shopSlug)
+    }
+  }, [myShop, setShop])
 
   if (isAdminOrManager) {
     return null
   }
+
+  const currentShopId = myShop?.shopId ?? shopId
+  const currentShopName = myShop?.shopName ?? shopName
 
   const configs = {
     none: {
@@ -102,15 +127,17 @@ function SellerCard() {
       border: 'border-green-100',
       icon: <Store className="h-5 w-5 text-green-600" />,
       iconBg: 'bg-green-100',
-      title: shopId
-          ? shopName ?? 'Shop của tôi'
+      title: currentShopId
+          ? currentShopName ?? 'Cửa hàng của bạn'
           : 'Tài khoản seller đã được duyệt!',
-      desc: shopId
-          ? 'Shop đang hoạt động.'
+      desc: currentShopId
+          ? 'Cửa hàng đang hoạt động.'
           : 'Hãy tạo shop để bắt đầu bán hàng.',
       action: {
-        to: shopId ? '/seller/dashboard' : '/seller/shop/setup',
-        label: shopId ? 'Vào Dashboard' : 'Tạo Shop ngay',
+        to: currentShopId ? '/seller/dashboard' : '/seller/shop/setup',
+        label: currentShopId
+            ? 'Quản lý cửa hàng của bạn'
+            : 'Tạo Shop ngay',
         cls: 'bg-green-600 hover:bg-green-700 text-white',
       },
     },
@@ -137,7 +164,7 @@ function SellerCard() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
-                className={`w-10 h-10 ${cfg.iconBg} rounded-xl flex items-center justify-center shrink-0`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${cfg.iconBg}`}
             >
               {cfg.icon}
             </div>
@@ -146,7 +173,8 @@ function SellerCard() {
               <p className="text-sm font-semibold text-gray-800">
                 {cfg.title}
               </p>
-              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
+
+              <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">
                 {cfg.desc}
               </p>
             </div>
@@ -154,24 +182,24 @@ function SellerCard() {
 
           <Link
               to={cfg.action.to}
-              className={`shrink-0 text-xs font-semibold px-3 py-2 rounded-xl transition-colors ${cfg.action.cls}`}
+              className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${cfg.action.cls}`}
           >
             {cfg.action.label}
           </Link>
         </div>
 
-        {status === 'approved' && shopId && (
-            <div className="flex gap-4 mt-3 pt-3 border-t border-green-100">
+        {status === 'approved' && currentShopId && (
+            <div className="mt-3 flex gap-4 border-t border-green-100 pt-3">
               <Link
                   to="/seller/products/new"
-                  className="text-xs text-green-700 hover:underline flex items-center gap-1"
+                  className="flex items-center gap-1 text-xs text-green-700 hover:underline"
               >
                 + Thêm sản phẩm
               </Link>
 
               <Link
                   to="/seller/dashboard"
-                  className="text-xs text-green-700 hover:underline flex items-center gap-1"
+                  className="flex items-center gap-1 text-xs text-green-700 hover:underline"
               >
                 Xem đơn hàng <ChevronRight className="h-3 w-3" />
               </Link>
@@ -181,7 +209,6 @@ function SellerCard() {
   )
 }
 
-// ── Main Page ────────────────────────────────────────────────────
 export default function ProfilePage() {
   const { user, updateUser } = useAuthStore()
 
@@ -250,7 +277,7 @@ export default function ProfilePage() {
     toggle: () => void
   }) => (
       <div>
-        <label className="block text-xs text-gray-500 mb-1">
+        <label className="mb-1 block text-xs text-gray-500">
           {label}
         </label>
 
@@ -259,8 +286,7 @@ export default function ProfilePage() {
               {...pwForm.register(name)}
               type={show ? 'text' : 'password'}
               placeholder="••••••••"
-              className="w-full pr-10 px-3 py-2 text-sm border border-gray-200 rounded-xl
-                     focus:outline-none focus:ring-2 focus:ring-orange-300 bg-gray-50 focus:bg-white"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 pr-10 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-300"
           />
 
           <button
@@ -277,7 +303,7 @@ export default function ProfilePage() {
         </div>
 
         {pwForm.formState.errors[name] && (
-            <p className="text-red-500 text-xs mt-1">
+            <p className="mt-1 text-xs text-red-500">
               {pwForm.formState.errors[name]?.message}
             </p>
         )}
@@ -285,31 +311,29 @@ export default function ProfilePage() {
   )
 
   return (
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+      <div className="mx-auto max-w-2xl space-y-4 px-4 py-8">
         <h1 className="text-xl font-bold text-gray-800">
           Tài khoản của tôi
         </h1>
 
-        {/* ── Avatar + tên ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               {user.avatarUrl ? (
                   <img
                       src={user.avatarUrl}
                       alt="avatar"
-                      className="w-20 h-20 rounded-full object-cover border-2 border-orange-200"
+                      className="h-20 w-20 rounded-full border-2 border-orange-200 object-cover"
                   />
               ) : (
-                  <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orange-100">
                     <User className="h-9 w-9 text-orange-400" />
                   </div>
               )}
 
               <button
                   type="button"
-                  className="absolute bottom-0 right-0 w-7 h-7 bg-orange-500 rounded-full
-                         flex items-center justify-center shadow hover:bg-orange-600 transition-colors"
+                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 shadow transition-colors hover:bg-orange-600"
               >
                 <Camera className="h-3.5 w-3.5 text-white" />
               </button>
@@ -320,13 +344,12 @@ export default function ProfilePage() {
                 {user.fullName}
               </p>
 
-              <p className="text-sm text-gray-400 mt-0.5">
+              <p className="mt-0.5 text-sm text-gray-400">
                 @{user.username}
               </p>
 
               <span
-                  className={`inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium
-                ${
+                  className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
                       user.role === 'admin'
                           ? 'bg-red-100 text-red-600'
                           : user.role === 'manager'
@@ -348,24 +371,22 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* ── Seller Card ── */}
         <SellerCard />
 
-        {/* ── Thông tin tài khoản ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <div className="space-y-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <h2 className="font-semibold text-gray-800">
             Thông tin tài khoản
           </h2>
 
-          {/* Email */}
-          <div className="flex items-center justify-between py-3 border-b border-gray-100">
+          <div className="flex items-center justify-between border-b border-gray-100 py-3">
             <div className="flex items-center gap-3">
-              <Mail className="h-4 w-4 text-orange-400 shrink-0" />
+              <Mail className="h-4 w-4 shrink-0 text-orange-400" />
 
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">
+                <p className="mb-0.5 text-xs text-gray-400">
                   Email
                 </p>
+
                 <p className="text-sm font-medium text-gray-800">
                   {maskEmail(user.email)}
                 </p>
@@ -374,13 +395,13 @@ export default function ProfilePage() {
 
             <div className="flex items-center gap-2">
               {user.emailVerified ? (
-                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
+                  <span className="flex items-center gap-1 text-xs font-medium text-green-600">
                 <CheckCircle className="h-3.5 w-3.5" />
                 Đã xác thực
               </span>
               ) : (
                   <>
-                <span className="flex items-center gap-1 text-red-500 text-xs">
+                <span className="flex items-center gap-1 text-xs text-red-500">
                   <XCircle className="h-3.5 w-3.5" />
                   Chưa xác thực
                 </span>
@@ -391,8 +412,7 @@ export default function ProfilePage() {
                           await authApi.sendVerifyEmail(user.email)
                           setModal('verifyEmail')
                         }}
-                        className="text-xs text-orange-500 border border-orange-300 px-2.5 py-1
-                             rounded-lg hover:bg-orange-50 transition-colors"
+                        className="rounded-lg border border-orange-300 px-2.5 py-1 text-xs text-orange-500 transition-colors hover:bg-orange-50"
                     >
                       Xác thực
                     </button>
@@ -401,15 +421,15 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Phone */}
-          <div className="flex items-center justify-between py-3 border-b border-gray-100">
+          <div className="flex items-center justify-between border-b border-gray-100 py-3">
             <div className="flex items-center gap-3">
-              <Phone className="h-4 w-4 text-orange-400 shrink-0" />
+              <Phone className="h-4 w-4 shrink-0 text-orange-400" />
 
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">
+                <p className="mb-0.5 text-xs text-gray-400">
                   Số điện thoại
                 </p>
+
                 <p className="text-sm font-medium text-gray-800">
                   {maskPhone(user.phoneNumber)}
                 </p>
@@ -417,22 +437,22 @@ export default function ProfilePage() {
             </div>
 
             {user.phoneVerified ? (
-                <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
+                <span className="flex items-center gap-1 text-xs font-medium text-green-600">
               <CheckCircle className="h-3.5 w-3.5" />
               Đã xác thực
             </span>
             ) : (
-                <span className="flex items-center gap-1 text-red-500 text-xs">
+                <span className="flex items-center gap-1 text-xs text-red-500">
               <XCircle className="h-3.5 w-3.5" />
               Chưa xác thực
             </span>
             )}
           </div>
 
-          {/* Đổi mật khẩu */}
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <Lock className="h-4 w-4 text-orange-400 shrink-0" />
+            <div className="mb-3 flex items-center gap-3">
+              <Lock className="h-4 w-4 shrink-0 text-orange-400" />
+
               <p className="text-sm font-semibold text-gray-800">
                 Đổi mật khẩu
               </p>
@@ -469,8 +489,7 @@ export default function ProfilePage() {
 
               <button
                   type="submit"
-                  className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium
-                         px-5 py-2 rounded-xl transition-colors"
+                  className="rounded-xl bg-orange-500 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
               >
                 Tiếp tục
               </button>
@@ -478,8 +497,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* ── Quick links ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
           {[
             {
               to: '/orders',
@@ -503,16 +521,16 @@ export default function ProfilePage() {
               <Link
                   key={item.to}
                   to={item.to}
-                  className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50
-                       transition-colors border-b border-gray-50 last:border-0"
+                  className="flex items-center justify-between border-b border-gray-50 px-5 py-3.5 transition-colors last:border-0 hover:bg-gray-50"
               >
                 <div className="flex items-center gap-3">
-                  <item.icon className="h-4 w-4 text-orange-400 shrink-0" />
+                  <item.icon className="h-4 w-4 shrink-0 text-orange-400" />
 
                   <div>
                     <p className="text-sm font-medium text-gray-800">
                       {item.label}
                     </p>
+
                     <p className="text-xs text-gray-400">
                       {item.desc}
                     </p>
@@ -524,7 +542,6 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* ── OTP Modals ── */}
         {modal === 'verifyEmail' && (
             <OtpModal
                 title="Xác thực Email"

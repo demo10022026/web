@@ -19,12 +19,20 @@ import { FlashSalePage } from '@/pages/FlashSalePage'
 
 // User pages
 import ProfilePage from '@/pages/ProfilePage'
+import OrdersPage from '@/pages/OrdersPage'
+import AddressesPage from '@/pages/AddressesPage'
 
 // Seller pages
 import BecomeSellerPage from '@/pages/seller/BecomeSellerPage'
 import SellerStatusPage from '@/pages/seller/SellerStatusPage'
 import SellerProtectedRoute from '@/components/ui/SellerProtectedRoute'
 import ShopSetupPage from '@/pages/seller/ShopSetupPage'
+import SellerDashboardPage from '@/pages/seller/SellerDashboardPage'
+import CreateProductPage from '@/pages/seller/CreateProductPage'
+import SellerProductsPage from '@/pages/seller/SellerProductsPage'
+import EditProductPage from '@/pages/seller/EditProductPage'
+import SellerOrdersPage from '@/pages/seller/SellerOrdersPage'
+import SellerAnalyticsPage from '@/pages/seller/SellerAnalyticsPage'
 
 // Cart pages
 import CartPage from '@/pages/CartPage'
@@ -38,12 +46,7 @@ import AdminSellerDetailPage from '@/pages/admin/AdminSellerDetailPage'
 
 // Placeholder pages
 const CheckoutPage = () => <ComingSoon title="Thanh toán" sprint={4} />
-const OrdersPage = () => <ComingSoon title="Đơn hàng" sprint={4} />
 const VouchersPage = () => <ComingSoon title="Voucher" sprint={4} />
-const AddressesPage = () => <ComingSoon title="Địa chỉ" sprint={4} />
-
-const SellerDashboardPage = () => <ComingSoon title="Seller dashboard" sprint={3} />
-const CreateProductPage = () => <ComingSoon title="Thêm sản phẩm" sprint={4} />
 
 function ComingSoon({
                         title,
@@ -110,6 +113,7 @@ export default function App() {
                             <Route path="/orders" element={<OrdersPage />} />
                             <Route path="/vouchers" element={<VouchersPage />} />
                             <Route path="/addresses" element={<AddressesPage />} />
+                            <Route path="/user/addresses" element={<AddressesPage />} />
 
                             <Route path="/become-seller" element={<BecomeSellerPage />} />
                             <Route path="/seller/apply" element={<BecomeSellerPage />} />
@@ -122,7 +126,11 @@ export default function App() {
                         <Route element={<MainLayout />}>
                             <Route path="/seller/shop/setup" element={<ShopSetupPage />} />
                             <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
+                            <Route path="/seller/products" element={<SellerProductsPage />} />
                             <Route path="/seller/products/new" element={<CreateProductPage />} />
+                            <Route path="/seller/products/:id/edit" element={<EditProductPage />} />
+                            <Route path="/seller/orders" element={<SellerOrdersPage />} />
+                            <Route path="/seller/analytics" element={<SellerAnalyticsPage />} /> dev
                         </Route>
                     </Route>
 

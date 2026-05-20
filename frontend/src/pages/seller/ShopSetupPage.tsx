@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+} from '@tanstack/react-query'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import toast from 'react-hot-toast'
 import { Loader2, Store } from 'lucide-react'
 import { sellerShopApi } from '@/api/sellerShopApi'
+import { useSellerStore } from '@/store/sellerStore'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
@@ -38,6 +43,8 @@ function validateImage(file: File) {
 
 export default function ShopSetupPage() {
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
+    const { setShop } = useSellerStore()
 
     const [avatarFile, setAvatarFile] = useState<File | null>(null)
     const [bannerFile, setBannerFile] = useState<File | null>(null)
@@ -52,13 +59,20 @@ export default function ShopSetupPage() {
         queryKey: ['sellerMyShop'],
         queryFn: sellerShopApi.getMyShop,
         retry: false,
+        staleTime: 0,
     })
 
     useEffect(() => {
         if (existingShop) {
+            setShop(
+                existingShop.shopId,
+                existingShop.shopName,
+                existingShop.shopSlug
+            )
+
             navigate('/seller/dashboard', { replace: true })
         }
-    }, [existingShop, navigate])
+    }, [existingShop, navigate, setShop])
 
     useEffect(() => {
         return () => {
@@ -81,19 +95,6 @@ export default function ShopSetupPage() {
         defaultValues: {
             shopName: '',
             description: '',
-        },
-    })
-
-    const createMutation = useMutation({
-        mutationFn: sellerShopApi.createShop,
-        onSuccess: () => {
-            toast.success('Tạo shop thành công')
-            navigate('/seller/dashboard', { replace: true })
-        },
-        onError: (err: any) => {
-            toast.error(
-                err?.response?.data?.message || 'Tạo shop thất bại'
-            )
         },
     })
 
@@ -129,6 +130,28 @@ export default function ShopSetupPage() {
         setBannerFile(file)
         setBannerPreview(previewUrl)
     }
+
+    const createMutation = useMutation({
+        mutationFn: sellerShopApi.createShop,
+
+        onSuccess: (shop) => {
+            setShop(shop.shopId, shop.shopName, shop.shopSlug)
+
+            queryClient.setQueryData(['sellerMyShop'], shop)
+            queryClient.invalidateQueries({
+                queryKey: ['sellerMyShop'],
+            })
+
+            toast.success('Tạo shop thành công')
+            navigate('/seller/dashboard', { replace: true })
+        },
+
+        onError: (err: any) => {
+            toast.error(
+                err?.response?.data?.message || 'Tạo shop thất bại'
+            )
+        },
+    })
 
     const onSubmit = (values: FormValues) => {
         createMutation.mutate({

@@ -44,7 +44,7 @@ export default function HomePage() {
             <div className="flex flex-wrap justify-center gap-2 mt-4">
               {data.categories.slice(0, 8).map((cat) => (
                 <Link key={cat.categoryId}
-                  to={`/search?categoryId=${cat.categoryId}`}
+                      to={`/search?parentCategoryId=${cat.categoryId}`}
                   className="bg-white/20 hover:bg-white/30 text-white text-xs
                              px-3 py-1.5 rounded-full transition-colors">
                   {cat.categoryName}
