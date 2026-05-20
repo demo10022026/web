@@ -10,6 +10,8 @@ public interface ShopRepository extends JpaRepository<Shop, Integer> {
 
     Optional<Shop> findBySeller(SellerProfile seller);
 
+    Optional<Shop> findByShopSlug(String shopSlug);
+
     boolean existsBySeller(SellerProfile seller);
 
     boolean existsByShopSlug(String shopSlug);

@@ -279,6 +279,15 @@ export default function Header() {
                             <ShoppingBag className="h-4 w-4 text-gray-400" />
                             Đơn mua của tôi
                           </Link>
+
+                          <Link
+                              to="/addresses"
+                              onClick={() => setDropdownOpen(false)}
+                              className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-gray-50"
+                          >
+                            <ShoppingBag className="h-4 w-4 text-gray-400" />
+                            Địa chỉ của tôi
+                          </Link>
                         </div>
 
                         {canShowSellerMenu && (

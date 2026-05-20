@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
-    ArrowRight,
     Eye,
     Loader2,
     Package,

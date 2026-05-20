@@ -21,6 +21,7 @@ import { FlashSalePage } from '@/pages/FlashSalePage'
 import ProfilePage from '@/pages/ProfilePage'
 import OrdersPage from '@/pages/OrdersPage'
 import AddressesPage from '@/pages/AddressesPage'
+import ShopPage from '@/pages/ShopPage'
 
 // Seller pages
 import BecomeSellerPage from '@/pages/seller/BecomeSellerPage'
@@ -33,6 +34,7 @@ import SellerProductsPage from '@/pages/seller/SellerProductsPage'
 import EditProductPage from '@/pages/seller/EditProductPage'
 import SellerOrdersPage from '@/pages/seller/SellerOrdersPage'
 import SellerAnalyticsPage from '@/pages/seller/SellerAnalyticsPage'
+import EditShopPage from '@/pages/seller/EditShopPage'
 
 // Cart pages
 import CartPage from '@/pages/CartPage'
@@ -114,6 +116,8 @@ export default function App() {
                             <Route path="/vouchers" element={<VouchersPage />} />
                             <Route path="/addresses" element={<AddressesPage />} />
                             <Route path="/user/addresses" element={<AddressesPage />} />
+                            <Route path="/shops/:shopSlugOrId" element={<ShopPage />} />
+                            <Route path="/shop/:shopSlugOrId" element={<ShopPage />} />
 
                             <Route path="/become-seller" element={<BecomeSellerPage />} />
                             <Route path="/seller/apply" element={<BecomeSellerPage />} />
@@ -130,6 +134,7 @@ export default function App() {
                             <Route path="/seller/products/new" element={<CreateProductPage />} />
                             <Route path="/seller/products/:id/edit" element={<EditProductPage />} />
                             <Route path="/seller/orders" element={<SellerOrdersPage />} />
+                            <Route path="/seller/shop/profile" element={<EditShopPage />} />
                             <Route path="/seller/analytics" element={<SellerAnalyticsPage />} /> dev
                         </Route>
                     </Route>
