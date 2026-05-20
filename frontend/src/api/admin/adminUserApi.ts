@@ -70,8 +70,36 @@ export interface AdminUserListParams {
 }
 
 export interface AdminUpdateUserPayload {
+    fullName?: string
+    email?: string
+    phoneNumber?: string
     role?: AdminUserRole
     accountStatus?: AdminAccountStatus
+}
+
+export interface AdminUpdateUserProfilePayload {
+    fullName?: string
+    email?: string
+    phoneNumber?: string
+}
+
+export interface AdminUpdateUserRolePayload {
+    role: AdminUserRole
+}
+
+export interface AdminUpdateUserStatusPayload {
+    accountStatus: AdminAccountStatus
+}
+
+export interface AdminResetUserPasswordPayload {
+    temporaryPassword?: string
+}
+
+export interface AdminResetPasswordResponse {
+    userId: number
+    email: string
+    temporaryPassword: string
+    message: string
 }
 
 function cleanParams<T extends object>(params: T) {
@@ -122,6 +150,54 @@ export const adminUserApi = {
     ): Promise<AdminUser> => {
         const res = await axiosInstance.patch<ApiResponse<AdminUser>>(
             `/admin/users/${userId}`,
+            payload
+        )
+
+        return res.data.data!
+    },
+
+    updateUserProfile: async (
+        userId: number,
+        payload: AdminUpdateUserProfilePayload
+    ): Promise<AdminUser> => {
+        const res = await axiosInstance.patch<ApiResponse<AdminUser>>(
+            `/admin/users/${userId}/profile`,
+            payload
+        )
+
+        return res.data.data!
+    },
+
+    updateUserRole: async (
+        userId: number,
+        payload: AdminUpdateUserRolePayload
+    ): Promise<AdminUser> => {
+        const res = await axiosInstance.patch<ApiResponse<AdminUser>>(
+            `/admin/users/${userId}/role`,
+            payload
+        )
+
+        return res.data.data!
+    },
+
+    updateUserStatus: async (
+        userId: number,
+        payload: AdminUpdateUserStatusPayload
+    ): Promise<AdminUser> => {
+        const res = await axiosInstance.patch<ApiResponse<AdminUser>>(
+            `/admin/users/${userId}/status`,
+            payload
+        )
+
+        return res.data.data!
+    },
+
+    resetUserPassword: async (
+        userId: number,
+        payload: AdminResetUserPasswordPayload = {}
+    ): Promise<AdminResetPasswordResponse> => {
+        const res = await axiosInstance.post<ApiResponse<AdminResetPasswordResponse>>(
+            `/admin/users/${userId}/reset-password`,
             payload
         )
 

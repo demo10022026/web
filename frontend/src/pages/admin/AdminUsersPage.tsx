@@ -19,6 +19,7 @@ import {
     type AdminUser,
     type AdminUserRole,
 } from '@/api/admin/adminUserApi'
+import { useAuthStore } from '@/store/authStore'
 
 const ROLE_OPTIONS: Array<{
     label: string
@@ -111,13 +112,21 @@ function formatDate(value?: string | null) {
 
 function UserRow({
     user,
+    actorId,
+    actorRole,
     onStatusChange,
     updating,
 }: {
     user: AdminUser
+    actorId?: number
+    actorRole?: string
     onStatusChange: (user: AdminUser, status: AdminAccountStatus) => void
     updating: boolean
 }) {
+    const isSelf = actorId === user.userId
+    const managerBlocked = actorRole === 'manager' && user.role === 'admin'
+    const disableStatusAction = updating || managerBlocked || isSelf
+
     return (
         <tr className="border-b border-gray-50 hover:bg-gray-50">
             <td className="px-4 py-4">
@@ -206,8 +215,15 @@ function UserRow({
                     {user.accountStatus === 'active' ? (
                         <button
                             type="button"
-                            disabled={updating}
+                            disabled={disableStatusAction}
                             onClick={() => onStatusChange(user, 'suspended')}
+                            title={
+                                isSelf
+                                    ? 'Không thể tự khóa chính mình'
+                                    : managerBlocked
+                                      ? 'Manager không thể khóa admin'
+                                      : undefined
+                            }
                             className="inline-flex items-center gap-1 rounded-xl border border-yellow-100 px-3 py-2 text-sm font-medium text-yellow-700 hover:bg-yellow-50 disabled:opacity-60"
                         >
                             <Ban size={15} />
@@ -216,12 +232,12 @@ function UserRow({
                     ) : (
                         <button
                             type="button"
-                            disabled={updating}
+                            disabled={disableStatusAction}
                             onClick={() => onStatusChange(user, 'active')}
                             className="inline-flex items-center gap-1 rounded-xl border border-green-100 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-50 disabled:opacity-60"
                         >
                             <CheckCircle2 size={15} />
-                            Mở
+                            Mở khóa
                         </button>
                     )}
                 </div>
@@ -232,6 +248,7 @@ function UserRow({
 
 export default function AdminUsersPage() {
     const queryClient = useQueryClient()
+    const actor = useAuthStore((state) => state.user)
 
     const [keywordInput, setKeywordInput] = useState('')
     const [keyword, setKeyword] = useState('')
@@ -253,11 +270,13 @@ export default function AdminUsersPage() {
                 page,
                 size: 10,
             }),
+        staleTime: 0,
     })
 
     const statsQuery = useQuery({
         queryKey: ['adminUserStats'],
         queryFn: adminUserApi.getStats,
+        staleTime: 0,
     })
 
     const updateMutation = useMutation({
@@ -268,21 +287,14 @@ export default function AdminUsersPage() {
             user: AdminUser
             accountStatus: AdminAccountStatus
         }) =>
-            adminUserApi.updateUser(user.userId, {
-                role: user.role,
+            adminUserApi.updateUserStatus(user.userId, {
                 accountStatus,
             }),
         onSuccess: () => {
-            toast.success('Cập nhật tài khoản thành công')
-            queryClient.invalidateQueries({
-                queryKey: ['adminUsers'],
-            })
-            queryClient.invalidateQueries({
-                queryKey: ['adminUserStats'],
-            })
-            queryClient.invalidateQueries({
-                queryKey: ['adminDashboard'],
-            })
+            toast.success('Cập nhật trạng thái tài khoản thành công')
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] })
+            queryClient.invalidateQueries({ queryKey: ['adminUserStats'] })
+            queryClient.invalidateQueries({ queryKey: ['adminDashboard'] })
         },
         onError: (err: any) => {
             toast.error(
@@ -395,10 +407,7 @@ export default function AdminUsersPage() {
                         className="rounded-xl border px-3 py-2.5 text-sm outline-none"
                     >
                         {ROLE_OPTIONS.map((item) => (
-                            <option
-                                key={item.value}
-                                value={item.value}
-                            >
+                            <option key={item.value} value={item.value}>
                                 {item.label}
                             </option>
                         ))}
@@ -407,18 +416,13 @@ export default function AdminUsersPage() {
                     <select
                         value={status}
                         onChange={(e) => {
-                            setStatus(
-                                e.target.value as 'all' | AdminAccountStatus
-                            )
+                            setStatus(e.target.value as 'all' | AdminAccountStatus)
                             setPage(0)
                         }}
                         className="rounded-xl border px-3 py-2.5 text-sm outline-none"
                     >
                         {STATUS_OPTIONS.map((item) => (
-                            <option
-                                key={item.value}
-                                value={item.value}
-                            >
+                            <option key={item.value} value={item.value}>
                                 {item.label}
                             </option>
                         ))}
@@ -455,38 +459,40 @@ export default function AdminUsersPage() {
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[980px]">
                             <thead>
-                            <tr className="bg-gray-50 text-left">
-                                <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
-                                    Người dùng
-                                </th>
-                                <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
-                                    Liên hệ
-                                </th>
-                                <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
-                                    Vai trò
-                                </th>
-                                <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
-                                    Trạng thái
-                                </th>
-                                <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
-                                    Seller/Shop
-                                </th>
-                                <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
-                                    Ngày tạo
-                                </th>
-                                <th className="px-4 py-3" />
-                            </tr>
+                                <tr className="bg-gray-50 text-left">
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
+                                        Người dùng
+                                    </th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
+                                        Liên hệ
+                                    </th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
+                                        Vai trò
+                                    </th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
+                                        Trạng thái
+                                    </th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
+                                        Seller/Shop
+                                    </th>
+                                    <th className="px-4 py-3 text-xs font-semibold uppercase text-gray-500">
+                                        Ngày tạo
+                                    </th>
+                                    <th className="px-4 py-3" />
+                                </tr>
                             </thead>
 
                             <tbody>
-                            {users.map((user) => (
-                                <UserRow
-                                    key={user.userId}
-                                    user={user}
-                                    onStatusChange={handleStatusChange}
-                                    updating={updateMutation.isPending}
-                                />
-                            ))}
+                                {users.map((user) => (
+                                    <UserRow
+                                        key={user.userId}
+                                        user={user}
+                                        actorId={actor?.userId}
+                                        actorRole={actor?.role}
+                                        onStatusChange={handleStatusChange}
+                                        updating={updateMutation.isPending}
+                                    />
+                                ))}
                             </tbody>
                         </table>
                     </div>

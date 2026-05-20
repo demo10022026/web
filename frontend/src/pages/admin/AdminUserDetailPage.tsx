@@ -5,7 +5,11 @@ import toast from 'react-hot-toast'
 import {
     ArrowLeft,
     CheckCircle2,
+    Copy,
+    KeyRound,
     Loader2,
+    Mail,
+    Phone,
     Save,
     Shield,
     Store,
@@ -16,6 +20,7 @@ import {
     type AdminAccountStatus,
     type AdminUserRole,
 } from '@/api/admin/adminUserApi'
+import { useAuthStore } from '@/store/authStore'
 
 function formatDate(value?: string | null) {
     if (!value) return '-'
@@ -57,15 +62,32 @@ function statusLabel(status?: string | null) {
     }
 }
 
+function Info({ label, value }: { label: string; value?: string | null }) {
+    return (
+        <div className="rounded-xl border bg-gray-50 p-3">
+            <p className="text-xs text-gray-400">{label}</p>
+            <p className="mt-1 break-words text-sm font-medium text-gray-800">
+                {value || '-'}
+            </p>
+        </div>
+    )
+}
+
 export default function AdminUserDetailPage() {
     const { userId } = useParams()
     const id = Number(userId)
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const actor = useAuthStore((state) => state.user)
 
+    const [fullName, setFullName] = useState('')
+    const [email, setEmail] = useState('')
+    const [phoneNumber, setPhoneNumber] = useState('')
     const [role, setRole] = useState<AdminUserRole>('user')
     const [accountStatus, setAccountStatus] =
         useState<AdminAccountStatus>('active')
+    const [customPassword, setCustomPassword] = useState('')
+    const [temporaryPassword, setTemporaryPassword] = useState('')
 
     const {
         data: user,
@@ -81,37 +103,104 @@ export default function AdminUserDetailPage() {
     useEffect(() => {
         if (!user) return
 
+        setFullName(user.fullName ?? '')
+        setEmail(user.email ?? '')
+        setPhoneNumber(user.phoneNumber ?? '')
         setRole(user.role)
         setAccountStatus(user.accountStatus)
+        setTemporaryPassword('')
     }, [user])
 
-    const updateMutation = useMutation({
+    const invalidateUserQueries = (updated?: unknown) => {
+        if (updated) {
+            queryClient.setQueryData(['adminUserDetail', id], updated)
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['adminUsers'] })
+        queryClient.invalidateQueries({ queryKey: ['adminUserStats'] })
+        queryClient.invalidateQueries({ queryKey: ['adminDashboard'] })
+    }
+
+    const profileMutation = useMutation({
         mutationFn: () =>
-            adminUserApi.updateUser(id, {
-                role,
-                accountStatus,
+            adminUserApi.updateUserProfile(id, {
+                fullName: fullName.trim(),
+                email: email.trim(),
+                phoneNumber: phoneNumber.trim(),
             }),
         onSuccess: (updated) => {
-            toast.success('Cập nhật tài khoản thành công')
-
-            queryClient.setQueryData(['adminUserDetail', id], updated)
-            queryClient.invalidateQueries({
-                queryKey: ['adminUsers'],
-            })
-            queryClient.invalidateQueries({
-                queryKey: ['adminUserStats'],
-            })
-            queryClient.invalidateQueries({
-                queryKey: ['adminDashboard'],
-            })
+            toast.success('Đã cập nhật thông tin tài khoản')
+            invalidateUserQueries(updated)
         },
         onError: (err: any) => {
             toast.error(
                 err?.response?.data?.message ||
-                    'Không thể cập nhật tài khoản'
+                    'Không thể cập nhật thông tin tài khoản'
             )
         },
     })
+
+    const statusMutation = useMutation({
+        mutationFn: () =>
+            adminUserApi.updateUserStatus(id, {
+                accountStatus,
+            }),
+        onSuccess: (updated) => {
+            toast.success('Đã cập nhật trạng thái tài khoản')
+            invalidateUserQueries(updated)
+        },
+        onError: (err: any) => {
+            toast.error(
+                err?.response?.data?.message ||
+                    'Không thể cập nhật trạng thái tài khoản'
+            )
+        },
+    })
+
+    const roleMutation = useMutation({
+        mutationFn: () =>
+            adminUserApi.updateUserRole(id, {
+                role,
+            }),
+        onSuccess: (updated) => {
+            toast.success('Đã cập nhật vai trò người dùng')
+            invalidateUserQueries(updated)
+        },
+        onError: (err: any) => {
+            toast.error(
+                err?.response?.data?.message ||
+                    'Không thể cập nhật vai trò người dùng'
+            )
+        },
+    })
+
+    const resetPasswordMutation = useMutation({
+        mutationFn: () =>
+            adminUserApi.resetUserPassword(id, {
+                temporaryPassword: customPassword.trim() || undefined,
+            }),
+        onSuccess: (res) => {
+            setTemporaryPassword(res.temporaryPassword)
+            setCustomPassword('')
+            toast.success('Đã reset mật khẩu')
+        },
+        onError: (err: any) => {
+            toast.error(
+                err?.response?.data?.message || 'Không thể reset mật khẩu'
+            )
+        },
+    })
+
+    const copyTemporaryPassword = async () => {
+        if (!temporaryPassword) return
+
+        try {
+            await navigator.clipboard.writeText(temporaryPassword)
+            toast.success('Đã sao chép mật khẩu tạm')
+        } catch {
+            toast.error('Không thể sao chép mật khẩu')
+        }
+    }
 
     if (isLoading) {
         return (
@@ -131,6 +220,12 @@ export default function AdminUserDetailPage() {
             </div>
         )
     }
+
+    const actorIsAdmin = actor?.role === 'admin'
+    const actorIsManager = actor?.role === 'manager'
+    const targetIsAdmin = user.role === 'admin'
+    const isSelf = actor?.userId === user.userId
+    const managerBlocked = actorIsManager && targetIsAdmin
 
     return (
         <div className="p-6">
@@ -177,20 +272,6 @@ export default function AdminUserDetailPage() {
                         </div>
                     </div>
                 </div>
-
-                <button
-                    type="button"
-                    disabled={updateMutation.isPending}
-                    onClick={() => updateMutation.mutate()}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
-                >
-                    {updateMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                        <Save size={16} />
-                    )}
-                    Lưu thay đổi
-                </button>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -204,28 +285,92 @@ export default function AdminUserDetailPage() {
                         <div className="grid gap-4 md:grid-cols-2">
                             <Info label="User ID" value={String(user.userId)} />
                             <Info label="Username" value={user.username} />
-                            <Info label="Họ tên" value={user.fullName} />
-                            <Info label="Email" value={user.email} />
-                            <Info label="Số điện thoại" value={user.phoneNumber} />
                             <Info label="Giới tính" value={user.gender || '-'} />
                             <Info label="Ngày sinh" value={user.birthDate || '-'} />
                             <Info label="Ngày tạo" value={formatDate(user.createdAt)} />
+                            <Info label="Cập nhật gần nhất" value={formatDate(user.updatedAt)} />
                             <Info label="Đăng nhập gần nhất" value={formatDate(user.lastLoginAt)} />
+                            <Info
+                                label="Xác minh"
+                                value={`Email: ${user.emailVerified ? 'đã xác minh' : 'chưa'} · SĐT: ${user.phoneVerified ? 'đã xác minh' : 'chưa'}`}
+                            />
                         </div>
+                    </section>
+
+                    <section className="rounded-2xl border bg-white p-5 shadow-sm">
+                        <h2 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
+                            <Mail size={18} />
+                            Sửa thông tin liên hệ
+                        </h2>
+
+                        {managerBlocked && (
+                            <div className="mb-4 rounded-xl bg-yellow-50 p-3 text-sm text-yellow-700">
+                                Manager không thể sửa tài khoản admin.
+                            </div>
+                        )}
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                    Họ tên
+                                </label>
+                                <input
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    disabled={managerBlocked}
+                                    className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                    Email
+                                </label>
+                                <input
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    disabled={managerBlocked}
+                                    className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                    Số điện thoại
+                                </label>
+                                <input
+                                    value={phoneNumber}
+                                    onChange={(e) => setPhoneNumber(e.target.value)}
+                                    disabled={managerBlocked}
+                                    className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            disabled={profileMutation.isPending || managerBlocked}
+                            onClick={() => profileMutation.mutate()}
+                            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+                        >
+                            {profileMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save size={16} />
+                            )}
+                            Lưu thông tin
+                        </button>
                     </section>
 
                     {user.hasSellerProfile && (
                         <section className="rounded-2xl border bg-white p-5 shadow-sm">
                             <h2 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
                                 <Store size={18} />
-                                Hồ sơ seller
+                                Hồ sơ seller / shop
                             </h2>
 
                             <div className="grid gap-4 md:grid-cols-2">
-                                <Info
-                                    label="Seller ID"
-                                    value={user.sellerId ? String(user.sellerId) : '-'}
-                                />
+                                <Info label="Seller ID" value={user.sellerId ? String(user.sellerId) : '-'} />
                                 <Info label="Trạng thái seller" value={user.sellerStatus || '-'} />
                                 <Info label="CCCD/CMND" value={user.identityNumber || '-'} />
                                 <Info label="Mã số thuế" value={user.taxCode || '-'} />
@@ -239,14 +384,14 @@ export default function AdminUserDetailPage() {
                                         to={`/admin/sellers/${user.sellerId}`}
                                         className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                                     >
-                                        Xem hồ sơ seller
+                                        Xem chi tiết seller
                                     </Link>
                                 )}
 
                                 {(user.shopSlug || user.shopId) && (
                                     <Link
                                         to={`/shops/${user.shopSlug || user.shopId}`}
-                                        className="rounded-xl border px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-50"
+                                        className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                                     >
                                         Xem shop public
                                     </Link>
@@ -260,99 +405,153 @@ export default function AdminUserDetailPage() {
                     <section className="rounded-2xl border bg-white p-5 shadow-sm">
                         <h2 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
                             <Shield size={18} />
-                            Quyền và trạng thái
+                            Vai trò và trạng thái
                         </h2>
 
                         <div className="space-y-4">
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                                    Vai trò
-                                </label>
-
-                                <select
-                                    value={role}
-                                    onChange={(e) =>
-                                        setRole(e.target.value as AdminUserRole)
-                                    }
-                                    className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500"
-                                >
-                                    <option value="user">User</option>
-                                    <option value="seller">Seller</option>
-                                    <option value="manager">Manager</option>
-                                    <option value="admin">Admin</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-gray-700">
                                     Trạng thái tài khoản
                                 </label>
-
                                 <select
                                     value={accountStatus}
                                     onChange={(e) =>
-                                        setAccountStatus(
-                                            e.target.value as AdminAccountStatus
-                                        )
+                                        setAccountStatus(e.target.value as AdminAccountStatus)
                                     }
-                                    className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500"
+                                    disabled={managerBlocked}
+                                    className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
                                 >
                                     <option value="active">Hoạt động</option>
                                     <option value="suspended">Tạm khóa</option>
                                     <option value="banned">Bị cấm</option>
                                 </select>
                             </div>
-                        </div>
 
-                        <div className="mt-4 rounded-xl bg-yellow-50 p-3 text-xs text-yellow-700">
-                            Không thể tự khóa hoặc tự hạ quyền tài khoản admin/manager đang đăng nhập.
+                            {isSelf && accountStatus !== 'active' && (
+                                <p className="rounded-xl bg-yellow-50 p-3 text-xs text-yellow-700">
+                                    Không thể tự khóa tài khoản đang đăng nhập.
+                                </p>
+                            )}
+
+                            <button
+                                type="button"
+                                disabled={statusMutation.isPending || managerBlocked}
+                                onClick={() => statusMutation.mutate()}
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+                            >
+                                {statusMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <CheckCircle2 size={16} />
+                                )}
+                                Lưu trạng thái
+                            </button>
+
+                            <div className="border-t pt-4">
+                                <label className="mb-1 block text-sm font-medium text-gray-700">
+                                    Vai trò
+                                </label>
+                                <select
+                                    value={role}
+                                    onChange={(e) => setRole(e.target.value as AdminUserRole)}
+                                    disabled={!actorIsAdmin}
+                                    className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
+                                >
+                                    <option value="user">User</option>
+                                    <option value="seller">Seller</option>
+                                    <option value="manager">Manager</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+
+                                <p className="mt-2 text-xs text-gray-500">
+                                    Chỉ admin được đổi vai trò. Hệ thống chỉ cho phép có 1 admin duy nhất.
+                                </p>
+
+                                <button
+                                    type="button"
+                                    disabled={roleMutation.isPending || !actorIsAdmin}
+                                    onClick={() => roleMutation.mutate()}
+                                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                >
+                                    {roleMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Shield size={16} />
+                                    )}
+                                    Lưu vai trò
+                                </button>
+                            </div>
                         </div>
                     </section>
 
                     <section className="rounded-2xl border bg-white p-5 shadow-sm">
                         <h2 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
-                            <CheckCircle2 size={18} />
-                            Xác minh
+                            <KeyRound size={18} />
+                            Hỗ trợ mật khẩu
                         </h2>
 
-                        <div className="space-y-2 text-sm">
-                            <div className="flex items-center justify-between">
-                                <span className="text-gray-500">Email</span>
-                                <span className={user.emailVerified ? 'text-green-600' : 'text-gray-400'}>
-                                    {user.emailVerified ? 'Đã xác minh' : 'Chưa xác minh'}
-                                </span>
-                            </div>
+                        <p className="text-sm text-gray-500">
+                            Không thể xem lại mật khẩu cũ. Chỉ có thể reset sang mật khẩu tạm mới.
+                        </p>
 
-                            <div className="flex items-center justify-between">
-                                <span className="text-gray-500">SĐT</span>
-                                <span className={user.phoneVerified ? 'text-green-600' : 'text-gray-400'}>
-                                    {user.phoneVerified ? 'Đã xác minh' : 'Chưa xác minh'}
-                                </span>
+                        {managerBlocked && (
+                            <div className="mt-3 rounded-xl bg-yellow-50 p-3 text-sm text-yellow-700">
+                                Manager không thể reset mật khẩu tài khoản admin.
                             </div>
+                        )}
+
+                        <div className="mt-4">
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                Mật khẩu tạm tùy chọn
+                            </label>
+                            <input
+                                value={customPassword}
+                                onChange={(e) => setCustomPassword(e.target.value)}
+                                disabled={managerBlocked}
+                                placeholder="Để trống để hệ thống tự sinh"
+                                className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
+                            />
                         </div>
+
+                        <button
+                            type="button"
+                            disabled={resetPasswordMutation.isPending || managerBlocked}
+                            onClick={() => resetPasswordMutation.mutate()}
+                            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+                        >
+                            {resetPasswordMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <KeyRound size={16} />
+                            )}
+                            Reset mật khẩu
+                        </button>
+
+                        {temporaryPassword && (
+                            <div className="mt-4 rounded-xl border border-green-100 bg-green-50 p-3">
+                                <p className="text-xs text-green-700">
+                                    Mật khẩu tạm mới
+                                </p>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <code className="flex-1 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-900">
+                                        {temporaryPassword}
+                                    </code>
+                                    <button
+                                        type="button"
+                                        onClick={copyTemporaryPassword}
+                                        className="rounded-lg border bg-white p-2 text-gray-500 hover:text-orange-600"
+                                    >
+                                        <Copy size={16} />
+                                    </button>
+                                </div>
+                                <p className="mt-2 text-xs text-green-700">
+                                    Chỉ hiển thị một lần. Hãy copy và gửi cho người dùng.
+                                </p>
+                            </div>
+                        )}
                     </section>
                 </aside>
             </div>
-        </div>
-    )
-}
-
-function Info({
-    label,
-    value,
-}: {
-    label: string
-    value: string
-}) {
-    return (
-        <div>
-            <p className="text-xs font-medium uppercase text-gray-400">
-                {label}
-            </p>
-
-            <p className="mt-1 break-words text-sm text-gray-800">
-                {value}
-            </p>
         </div>
     )
 }

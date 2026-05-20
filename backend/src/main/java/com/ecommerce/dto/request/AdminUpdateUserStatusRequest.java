@@ -1,20 +1,14 @@
 package com.ecommerce.dto.request;
 
 import com.ecommerce.entity.User;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class AdminUpdateUserRequest {
+public class AdminUpdateUserStatusRequest {
 
-    private String fullName;
-
-    private String email;
-
-    private String phoneNumber;
-
-    private User.Role role;
-
+    @NotNull(message = "Trạng thái tài khoản không được để trống")
     private User.AccountStatus accountStatus;
 }
