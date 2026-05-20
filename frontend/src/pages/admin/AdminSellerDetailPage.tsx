@@ -22,6 +22,18 @@ const documentLabels: Record<string, string> = {
     tax_document: 'Giấy tờ thuế',
 }
 
+const REJECTION_REASONS = [
+    'Ảnh CCCD mặt trước không rõ hoặc bị che khuất',
+    'Ảnh CCCD mặt sau không rõ hoặc bị che khuất',
+    'Thông tin CCCD không khớp với hồ sơ',
+    'Thiếu giấy phép kinh doanh',
+    'Giấy phép kinh doanh không hợp lệ',
+    'Thiếu giấy tờ thuế',
+    'Giấy tờ thuế không hợp lệ',
+    'Tài liệu bị mờ, chói sáng hoặc không đủ 4 góc',
+    'Hồ sơ có dấu hiệu không hợp lệ',
+]
+
 function isImageUrl(url: string) {
     return /\.(png|jpe?g|webp|gif|bmp)$/i.test(url)
 }
@@ -113,7 +125,7 @@ export default function AdminSellerDetailPage() {
 
     const [checked, setChecked] = useState(false)
     const [rejectMode, setRejectMode] = useState(false)
-    const [reason, setReason] = useState('')
+    const [selectedReason, setSelectedReason] = useState('')
 
     const {
         data: seller,
@@ -190,14 +202,14 @@ export default function AdminSellerDetailPage() {
             return
         }
 
-        if (!reason.trim()) {
-            toast.error('Nhập lý do từ chối')
+        if (!selectedReason) {
+            toast.error('Vui lòng chọn lý do từ chối')
             return
         }
 
         reviewMutation.mutate({
             approved: false,
-            rejectionReason: reason.trim(),
+            rejectionReason: selectedReason,
         })
     }
 
@@ -367,13 +379,36 @@ export default function AdminSellerDetailPage() {
                             </label>
 
                             {rejectMode && (
-                                <textarea
-                                    value={reason}
-                                    onChange={(e) => setReason(e.target.value)}
-                                    placeholder="Nhập lý do từ chối"
-                                    rows={4}
-                                    className="mt-4 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-red-500"
-                                />
+                                <div className="mt-4 space-y-2">
+                                    <p className="text-sm font-medium text-gray-700">
+                                        Chọn lý do từ chối
+                                    </p>
+
+                                    <div className="space-y-2">
+                                        {REJECTION_REASONS.map((item) => (
+                                            <label
+                                                key={item}
+                                                className={[
+                                                    'flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm',
+                                                    selectedReason === item
+                                                        ? 'border-red-400 bg-red-50 text-red-700'
+                                                        : 'border-gray-200 bg-white text-gray-700 hover:border-red-300',
+                                                ].join(' ')}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="rejectReason"
+                                                    value={item}
+                                                    checked={selectedReason === item}
+                                                    onChange={() => setSelectedReason(item)}
+                                                    className="mt-1"
+                                                />
+
+                                                <span>{item}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
 
                             <div className="mt-4 flex flex-wrap gap-2">
@@ -388,11 +423,14 @@ export default function AdminSellerDetailPage() {
 
                                 {!rejectMode ? (
                                     <button
-                                        onClick={() => setRejectMode(true)}
+                                        onClick={() => {
+                                            setRejectMode((prev) => !prev)
+                                            setSelectedReason('')
+                                        }}
                                         className="inline-flex items-center gap-1 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
                                     >
                                         <XCircle size={16} />
-                                        Từ chối
+                                        {rejectMode ? 'Hủy từ chối' : 'Từ chối'}
                                     </button>
                                 ) : (
                                     <button
