@@ -1,6 +1,5 @@
 package com.ecommerce.security;
 
-import com.ecommerce.util.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -27,7 +26,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     protected void doFilterInternal(
@@ -98,8 +96,11 @@ public class JwtFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json;charset=UTF-8");
 
-        ApiResponse<Void> body = ApiResponse.error(message, code);
-        response.getWriter().write(objectMapper.writeValueAsString(body));
+        response.getWriter().write(String.format(
+                "{\"success\":false,\"message\":\"%s\",\"errorCode\":\"%s\"}",
+                message,
+                code
+        ));
     }
 
     private String extractToken(HttpServletRequest request) {

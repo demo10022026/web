@@ -24,7 +24,7 @@ import ProfilePage from '@/pages/ProfilePage'
 import BecomeSellerPage from '@/pages/seller/BecomeSellerPage'
 import SellerStatusPage from '@/pages/seller/SellerStatusPage'
 import SellerProtectedRoute from '@/components/ui/SellerProtectedRoute'
-import AdminSellerDetailPage from '@/pages/admin/AdminSellerDetailPage'
+import ShopSetupPage from '@/pages/seller/ShopSetupPage'
 
 // Cart pages
 import CartPage from '@/pages/CartPage'
@@ -34,6 +34,7 @@ import AdminLayout from '@/components/admin/AdminLayout'
 import AdminProductsPage from '@/pages/admin/AdminProductsPage'
 import AdminProductDetailPage from '@/pages/admin/AdminProductDetailPage'
 import AdminSellersPage from '@/pages/admin/AdminSellersPage'
+import AdminSellerDetailPage from '@/pages/admin/AdminSellerDetailPage'
 
 // Placeholder pages
 const CheckoutPage = () => <ComingSoon title="Thanh toán" sprint={4} />
@@ -41,7 +42,6 @@ const OrdersPage = () => <ComingSoon title="Đơn hàng" sprint={4} />
 const VouchersPage = () => <ComingSoon title="Voucher" sprint={4} />
 const AddressesPage = () => <ComingSoon title="Địa chỉ" sprint={4} />
 
-const ShopSetupPage = () => <ComingSoon title="Tạo shop" sprint={3} />
 const SellerDashboardPage = () => <ComingSoon title="Seller dashboard" sprint={3} />
 const CreateProductPage = () => <ComingSoon title="Thêm sản phẩm" sprint={4} />
 
@@ -97,7 +97,9 @@ export default function App() {
                     {/* User authenticated */}
                     <Route
                         element={
-                            <ProtectedRoute allowedRoles={['user', 'seller', 'admin', 'manager']} />
+                            <ProtectedRoute
+                                allowedRoles={['user', 'seller', 'admin', 'manager']}
+                            />
                         }
                     >
                         <Route element={<MainLayout />}>
@@ -126,16 +128,14 @@ export default function App() {
 
                     {/* Admin / Manager */}
                     <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
-                        <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
-                            <Route path="/admin" element={<AdminLayout />}>
-                                <Route index element={<Navigate to="/admin/sellers" replace />} />
+                        <Route path="/admin" element={<AdminLayout />}>
+                            <Route index element={<Navigate to="/admin/sellers" replace />} />
 
-                                <Route path="sellers" element={<AdminSellersPage />} />
-                                <Route path="sellers/:sellerId" element={<AdminSellerDetailPage />} />
+                            <Route path="sellers" element={<AdminSellersPage />} />
+                            <Route path="sellers/:sellerId" element={<AdminSellerDetailPage />} />
 
-                                <Route path="products" element={<AdminProductsPage />} />
-                                <Route path="products/:productId" element={<AdminProductDetailPage />} />
-                            </Route>
+                            <Route path="products" element={<AdminProductsPage />} />
+                            <Route path="products/:productId" element={<AdminProductDetailPage />} />
                         </Route>
                     </Route>
 
