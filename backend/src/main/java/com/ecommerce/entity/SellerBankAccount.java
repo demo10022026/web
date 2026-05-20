@@ -26,6 +26,15 @@ public class SellerBankAccount {
     @Column(name = "bank_name", nullable = false, length = 100)
     private String bankName;
 
+    @Column(name = "bank_code", nullable = false, length = 50)
+    private String bankCode;
+
+    @Column(name = "bank_bin", nullable = false, length = 20)
+    private String bankBin;
+
+    @Column(name = "bank_logo", nullable = false)
+    private String bankLogo;
+
     @Column(name = "account_holder", nullable = false, length = 100)
     private String accountHolder;
 

@@ -14,6 +14,7 @@ import {
     sellerShopProfileApi,
     type SellerShopStatus,
 } from '@/api/sellerShopProfileApi'
+import { bankApi } from '@/api/bankApi'
 
 interface ShopFormState {
     shopName: string
@@ -58,6 +59,17 @@ export default function EditShopPage() {
         queryFn: sellerShopProfileApi.getMyShopProfile,
         retry: false,
         staleTime: 0,
+    })
+
+    const {
+        data: banks = [],
+        isLoading: isLoadingBanks,
+        isError: isBanksError,
+    } = useQuery({
+        queryKey: ['vietQrBanks'],
+        queryFn: bankApi.getBanks,
+        staleTime: 24 * 60 * 60 * 1000,
+        retry: 1,
     })
 
     useEffect(() => {
@@ -373,7 +385,7 @@ export default function EditShopPage() {
                                 <label className="mb-1 block text-sm font-medium text-gray-700">
                                     Ngân hàng
                                 </label>
-                                <input
+                                <select
                                     value={bankForm.bankName}
                                     onChange={(e) =>
                                         setBankForm((prev) => ({
@@ -382,8 +394,36 @@ export default function EditShopPage() {
                                         }))
                                     }
                                     className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500"
-                                    placeholder="VD: Vietcombank"
-                                />
+                                >
+                                    <option value="">
+                                        {isLoadingBanks
+                                            ? 'Đang tải danh sách ngân hàng...'
+                                            : 'Chọn ngân hàng'}
+                                    </option>
+
+                                    {bankForm.bankName &&
+                                        !banks.some(
+                                            (bank) =>
+                                                bank.name === bankForm.bankName ||
+                                                bank.shortName === bankForm.bankName
+                                        ) && (
+                                            <option value={bankForm.bankName}>
+                                                {bankForm.bankName}
+                                            </option>
+                                        )}
+
+                                    {banks.map((bank) => (
+                                        <option key={bank.id || bank.bin || bank.code} value={bank.name}>
+                                            {bank.shortName} — {bank.name}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                {isBanksError && (
+                                    <p className="mt-1 text-xs text-red-500">
+                                        Không thể tải danh sách ngân hàng. Có thể nhập lại sau hoặc kiểm tra kết nối mạng.
+                                    </p>
+                                )}
                             </div>
 
                             <div>

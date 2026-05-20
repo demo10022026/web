@@ -22,6 +22,7 @@ import ProfilePage from '@/pages/ProfilePage'
 import OrdersPage from '@/pages/OrdersPage'
 import AddressesPage from '@/pages/AddressesPage'
 import ShopPage from '@/pages/ShopPage'
+import VouchersPage from '@/pages/VouchersPage'
 
 // Seller pages
 import BecomeSellerPage from '@/pages/seller/BecomeSellerPage'
@@ -48,7 +49,6 @@ import AdminSellerDetailPage from '@/pages/admin/AdminSellerDetailPage'
 
 // Placeholder pages
 const CheckoutPage = () => <ComingSoon title="Thanh toán" sprint={4} />
-const VouchersPage = () => <ComingSoon title="Voucher" sprint={4} />
 
 function ComingSoon({
                         title,
