@@ -8,12 +8,14 @@ public interface VoucherService {
 
     List<VoucherResponse> getAvailableVouchers(
             String email,
-            String scope
+            String scope,
+            String keyword
     );
 
     List<VoucherResponse> getMyVouchers(
             String email,
-            String status
+            String status,
+            String keyword
     );
 
     VoucherResponse saveVoucher(

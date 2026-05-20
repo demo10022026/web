@@ -22,12 +22,14 @@ public class VoucherController {
     @GetMapping("/available")
     public ApiResponse<List<VoucherResponse>> getAvailableVouchers(
             @AuthenticationPrincipal UserDetails user,
-            @RequestParam(required = false) String scope
+            @RequestParam(required = false) String scope,
+            @RequestParam(required = false) String keyword
     ) {
         return ApiResponse.success(
                 voucherService.getAvailableVouchers(
                         requireEmail(user),
-                        scope
+                        scope,
+                        keyword
                 )
         );
     }
@@ -35,12 +37,14 @@ public class VoucherController {
     @GetMapping("/my")
     public ApiResponse<List<VoucherResponse>> getMyVouchers(
             @AuthenticationPrincipal UserDetails user,
-            @RequestParam(required = false) String status
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword
     ) {
         return ApiResponse.success(
                 voucherService.getMyVouchers(
                         requireEmail(user),
-                        status
+                        status,
+                        keyword
                 )
         );
     }
@@ -51,7 +55,7 @@ public class VoucherController {
             @PathVariable Integer voucherId
     ) {
         return ApiResponse.success(
-                "Đã lưu voucher",
+                "Lưu voucher thành công",
                 voucherService.saveVoucher(
                         requireEmail(user),
                         voucherId

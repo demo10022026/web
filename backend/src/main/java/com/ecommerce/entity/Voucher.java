@@ -52,22 +52,22 @@ public class Voucher {
     @Column(name = "usage_limit")
     private Integer usageLimit;
 
-    @Column(name = "used_count", nullable = false)
+    @Column(name = "used_count")
     @Builder.Default
     private Integer usedCount = 0;
 
-    @Column(name = "per_user_limit", nullable = false)
+    @Column(name = "per_user_limit")
     @Builder.Default
     private Integer perUserLimit = 1;
 
-    @Column(name = "start_time", nullable = false)
+    @Column(name = "start_time")
     private LocalDateTime startTime;
 
-    @Column(name = "end_time", nullable = false)
+    @Column(name = "end_time")
     private LocalDateTime endTime;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "voucher_status", nullable = false)
+    @Column(name = "voucher_status")
     @Builder.Default
     private VoucherStatus voucherStatus = VoucherStatus.active;
 

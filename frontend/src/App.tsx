@@ -36,6 +36,7 @@ import EditProductPage from '@/pages/seller/EditProductPage'
 import SellerOrdersPage from '@/pages/seller/SellerOrdersPage'
 import SellerAnalyticsPage from '@/pages/seller/SellerAnalyticsPage'
 import EditShopPage from '@/pages/seller/EditShopPage'
+import SellerVouchersPage from '@/pages/seller/SellerVouchersPage'
 
 // Cart pages
 import CartPage from '@/pages/CartPage'
@@ -129,13 +130,14 @@ export default function App() {
                     <Route element={<SellerProtectedRoute />}>
                         <Route element={<MainLayout />}>
                             <Route path="/seller/shop/setup" element={<ShopSetupPage />} />
+                            <Route path="/seller/shop/profile" element={<EditShopPage />} />
                             <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
                             <Route path="/seller/products" element={<SellerProductsPage />} />
                             <Route path="/seller/products/new" element={<CreateProductPage />} />
                             <Route path="/seller/products/:id/edit" element={<EditProductPage />} />
                             <Route path="/seller/orders" element={<SellerOrdersPage />} />
-                            <Route path="/seller/shop/profile" element={<EditShopPage />} />
-                            <Route path="/seller/analytics" element={<SellerAnalyticsPage />} /> dev
+                            <Route path="/seller/analytics" element={<SellerAnalyticsPage />} />
+                            <Route path="/seller/vouchers" element={<SellerVouchersPage />} />
                         </Route>
                     </Route>
 

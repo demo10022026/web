@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Builder
-public class VoucherResponse {
+public class SellerVoucherResponse {
 
     private Integer voucherId;
 
@@ -27,12 +27,10 @@ public class VoucherResponse {
     private Integer usageLimit;
     private Integer usedCount;
     private Integer perUserLimit;
-    private Integer userUsedCount;
 
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private LocalDateTime createdAt;
 
     private String voucherStatus;
-    private Boolean saved;
 }

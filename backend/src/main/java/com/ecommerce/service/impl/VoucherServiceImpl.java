@@ -1,7 +1,6 @@
 package com.ecommerce.service.impl;
 
 import com.ecommerce.dto.response.VoucherResponse;
-import com.ecommerce.entity.Shop;
 import com.ecommerce.entity.User;
 import com.ecommerce.entity.UserVoucher;
 import com.ecommerce.entity.Voucher;
@@ -16,48 +15,53 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class VoucherServiceImpl implements VoucherService {
 
-    private final UserRepository userRepo;
     private final VoucherRepository voucherRepo;
     private final UserVoucherRepository userVoucherRepo;
+    private final UserRepository userRepo;
 
     @Override
     @Transactional(readOnly = true)
     public List<VoucherResponse> getAvailableVouchers(
             String email,
-            String scope
+            String scope,
+            String keyword
     ) {
         User user = findUser(email);
 
-        LocalDateTime now = LocalDateTime.now();
-        Voucher.Scope voucherScope = parseScope(scope);
+        String cleanScope = normalizeText(scope);
+        String cleanKeyword = normalizeText(keyword);
 
-        List<Voucher> vouchers = voucherScope == null
-                ? voucherRepo.findActiveUsableVouchers(now)
-                : voucherRepo.findActiveUsableVouchersByScope(now, voucherScope);
-
-        Map<Integer, UserVoucher> savedMap = userVoucherRepo
+        Set<Integer> savedVoucherIds = userVoucherRepo
                 .findByUserOrderBySavedAtDesc(user)
                 .stream()
-                .collect(Collectors.toMap(
-                        uv -> uv.getVoucher().getVoucherId(),
-                        Function.identity(),
-                        (a, b) -> a
-                ));
+                .map(userVoucher -> userVoucher.getVoucher().getVoucherId())
+                .collect(Collectors.toSet());
 
-        return vouchers.stream()
+        return voucherRepo.findAll()
+                .stream()
+                .filter(this::isAvailableToSave)
+                .filter(voucher -> filterScope(voucher, cleanScope))
+                .filter(voucher -> filterKeyword(voucher, cleanKeyword))
+                .sorted(Comparator.comparing(
+                        Voucher::getEndTime,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                ).thenComparing(
+                        Voucher::getVoucherId,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
                 .map(voucher -> toResponse(
                         voucher,
-                        savedMap.get(voucher.getVoucherId()),
-                        now
+                        savedVoucherIds.contains(voucher.getVoucherId()),
+                        getUserUsedCount(user, voucher)
                 ))
                 .toList();
     }
@@ -66,17 +70,31 @@ public class VoucherServiceImpl implements VoucherService {
     @Transactional(readOnly = true)
     public List<VoucherResponse> getMyVouchers(
             String email,
-            String status
+            String status,
+            String keyword
     ) {
         User user = findUser(email);
 
-        LocalDateTime now = LocalDateTime.now();
         String cleanStatus = normalizeText(status);
+        String cleanKeyword = normalizeText(keyword);
 
         return userVoucherRepo.findByUserOrderBySavedAtDesc(user)
                 .stream()
-                .map(uv -> toResponse(uv.getVoucher(), uv, now))
-                .filter(voucher -> matchStatus(voucher, cleanStatus))
+                .map(userVoucher -> {
+                    Voucher voucher = userVoucher.getVoucher();
+
+                    return toResponse(
+                            voucher,
+                            true,
+                            safeInt(userVoucher.getUsedCount())
+                    );
+                })
+                .filter(response -> filterSavedStatus(response, cleanStatus))
+                .filter(response -> filterResponseKeyword(response, cleanKeyword))
+                .sorted(Comparator.comparing(
+                        VoucherResponse::getCreatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                ))
                 .toList();
     }
 
@@ -91,27 +109,31 @@ public class VoucherServiceImpl implements VoucherService {
         Voucher voucher = voucherRepo.findById(voucherId)
                 .orElseThrow(() -> AppException.notFound("Voucher"));
 
-        LocalDateTime now = LocalDateTime.now();
-
-        if (!isVoucherActive(voucher, now)) {
+        if (!isAvailableToSave(voucher)) {
             throw new AppException(
-                    "Voucher hiện không thể lưu",
+                    "Voucher không còn khả dụng",
                     HttpStatus.BAD_REQUEST,
                     "VOUCHER_NOT_AVAILABLE"
             );
         }
 
-        UserVoucher userVoucher = userVoucherRepo
-                .findByUserAndVoucher(user, voucher)
-                .orElseGet(() -> userVoucherRepo.save(
-                        UserVoucher.builder()
-                                .user(user)
-                                .voucher(voucher)
-                                .usedCount(0)
-                                .build()
-                ));
+        if (userVoucherRepo.existsByUserAndVoucher(user, voucher)) {
+            throw new AppException(
+                    "Bạn đã lưu voucher này",
+                    HttpStatus.BAD_REQUEST,
+                    "VOUCHER_ALREADY_SAVED"
+            );
+        }
 
-        return toResponse(voucher, userVoucher, now);
+        UserVoucher userVoucher = UserVoucher.builder()
+                .user(user)
+                .voucher(voucher)
+                .usedCount(0)
+                .build();
+
+        userVoucherRepo.save(userVoucher);
+
+        return toResponse(voucher, true, 0);
     }
 
     @Override
@@ -125,15 +147,14 @@ public class VoucherServiceImpl implements VoucherService {
         Voucher voucher = voucherRepo.findById(voucherId)
                 .orElseThrow(() -> AppException.notFound("Voucher"));
 
-        UserVoucher userVoucher = userVoucherRepo
-                .findByUserAndVoucher(user, voucher)
+        UserVoucher userVoucher = userVoucherRepo.findByUserAndVoucher(user, voucher)
                 .orElseThrow(() -> AppException.notFound("Voucher đã lưu"));
 
         if (safeInt(userVoucher.getUsedCount()) > 0) {
             throw new AppException(
-                    "Không thể xóa voucher đã sử dụng",
+                    "Không thể bỏ lưu voucher đã sử dụng",
                     HttpStatus.BAD_REQUEST,
-                    "USED_VOUCHER_CANNOT_REMOVE"
+                    "VOUCHER_ALREADY_USED"
             );
         }
 
@@ -142,19 +163,9 @@ public class VoucherServiceImpl implements VoucherService {
 
     private VoucherResponse toResponse(
             Voucher voucher,
-            UserVoucher userVoucher,
-            LocalDateTime now
+            boolean saved,
+            int userUsedCount
     ) {
-        Shop shop = voucher.getShop();
-
-        int remainingCount = voucher.getUsageLimit() == null
-                ? -1
-                : Math.max(0, voucher.getUsageLimit() - safeInt(voucher.getUsedCount()));
-
-        int userUsedCount = userVoucher == null ? 0 : safeInt(userVoucher.getUsedCount());
-
-        String unavailableReason = getUnavailableReason(voucher, userVoucher, now);
-
         return VoucherResponse.builder()
                 .voucherId(voucher.getVoucherId())
                 .code(voucher.getCode())
@@ -170,100 +181,144 @@ public class VoucherServiceImpl implements VoucherService {
                 .scope(voucher.getScope() == null
                         ? null
                         : voucher.getScope().name())
-                .shopId(shop == null ? null : shop.getShopId())
-                .shopName(shop == null ? null : shop.getShopName())
-                .shopSlug(shop == null ? null : shop.getShopSlug())
+                .shopId(voucher.getShop() == null
+                        ? null
+                        : voucher.getShop().getShopId())
+                .shopName(voucher.getShop() == null
+                        ? null
+                        : voucher.getShop().getShopName())
 
                 .usageLimit(voucher.getUsageLimit())
                 .usedCount(safeInt(voucher.getUsedCount()))
-                .remainingCount(remainingCount)
                 .perUserLimit(voucher.getPerUserLimit())
                 .userUsedCount(userUsedCount)
 
                 .startTime(voucher.getStartTime())
                 .endTime(voucher.getEndTime())
-                .voucherStatus(voucher.getVoucherStatus() == null
-                        ? null
-                        : voucher.getVoucherStatus().name())
+                .createdAt(voucher.getCreatedAt())
 
-                .saved(userVoucher != null)
-                .usable(unavailableReason == null)
-                .unavailableReason(unavailableReason)
+                .voucherStatus(resolveVoucherStatus(voucher))
+                .saved(saved)
                 .build();
     }
 
-    private boolean matchStatus(
-            VoucherResponse voucher,
+    private String resolveVoucherStatus(Voucher voucher) {
+        if (voucher.getVoucherStatus() == Voucher.VoucherStatus.inactive) {
+            return "inactive";
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (voucher.getStartTime() != null && voucher.getStartTime().isAfter(now)) {
+            return "upcoming";
+        }
+
+        if (voucher.getEndTime() != null && voucher.getEndTime().isBefore(now)) {
+            return "expired";
+        }
+
+        if (isUsageLimitReached(voucher)) {
+            return "used_out";
+        }
+
+        return "active";
+    }
+
+    private boolean isAvailableToSave(Voucher voucher) {
+        if (voucher.getVoucherStatus() != Voucher.VoucherStatus.active) {
+            return false;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (voucher.getStartTime() != null && voucher.getStartTime().isAfter(now)) {
+            return false;
+        }
+
+        if (voucher.getEndTime() != null && voucher.getEndTime().isBefore(now)) {
+            return false;
+        }
+
+        return !isUsageLimitReached(voucher);
+    }
+
+    private boolean isUsageLimitReached(Voucher voucher) {
+        Integer usageLimit = voucher.getUsageLimit();
+        Integer usedCount = voucher.getUsedCount();
+
+        return usageLimit != null
+                && usageLimit > 0
+                && usedCount != null
+                && usedCount >= usageLimit;
+    }
+
+    private boolean filterScope(
+            Voucher voucher,
+            String scope
+    ) {
+        if (scope == null || scope.equals("all")) {
+            return true;
+        }
+
+        if (voucher.getScope() == null) {
+            return false;
+        }
+
+        return voucher.getScope().name().equals(scope);
+    }
+
+    private boolean filterKeyword(
+            Voucher voucher,
+            String keyword
+    ) {
+        if (keyword == null) {
+            return true;
+        }
+
+        String lower = keyword.toLowerCase();
+
+        return contains(voucher.getCode(), lower)
+                || contains(voucher.getVoucherName(), lower)
+                || (
+                        voucher.getShop() != null
+                                && contains(voucher.getShop().getShopName(), lower)
+                );
+    }
+
+    private boolean filterResponseKeyword(
+            VoucherResponse response,
+            String keyword
+    ) {
+        if (keyword == null) {
+            return true;
+        }
+
+        String lower = keyword.toLowerCase();
+
+        return contains(response.getCode(), lower)
+                || contains(response.getVoucherName(), lower)
+                || contains(response.getShopName(), lower);
+    }
+
+    private boolean filterSavedStatus(
+            VoucherResponse response,
             String status
     ) {
         if (status == null || status.equals("all")) {
             return true;
         }
 
-        return switch (status) {
-            case "usable" -> Boolean.TRUE.equals(voucher.getUsable());
-            case "expired" -> "Voucher đã hết hạn".equals(voucher.getUnavailableReason())
-                    || "Voucher chưa bắt đầu".equals(voucher.getUnavailableReason())
-                    || "Voucher đã tạm dừng".equals(voucher.getUnavailableReason());
-            case "used" -> "Bạn đã dùng hết lượt voucher này".equals(voucher.getUnavailableReason());
-            default -> true;
-        };
+        return status.equals(response.getVoucherStatus());
     }
 
-    private String getUnavailableReason(
-            Voucher voucher,
-            UserVoucher userVoucher,
-            LocalDateTime now
+    private int getUserUsedCount(
+            User user,
+            Voucher voucher
     ) {
-        if (voucher.getVoucherStatus() != Voucher.VoucherStatus.active) {
-            return "Voucher đã tạm dừng";
-        }
-
-        if (voucher.getStartTime() != null && voucher.getStartTime().isAfter(now)) {
-            return "Voucher chưa bắt đầu";
-        }
-
-        if (voucher.getEndTime() != null && voucher.getEndTime().isBefore(now)) {
-            return "Voucher đã hết hạn";
-        }
-
-        if (voucher.getUsageLimit() != null
-                && safeInt(voucher.getUsedCount()) >= voucher.getUsageLimit()) {
-            return "Voucher đã hết lượt";
-        }
-
-        if (userVoucher != null
-                && voucher.getPerUserLimit() != null
-                && safeInt(userVoucher.getUsedCount()) >= voucher.getPerUserLimit()) {
-            return "Bạn đã dùng hết lượt voucher này";
-        }
-
-        return null;
-    }
-
-    private boolean isVoucherActive(
-            Voucher voucher,
-            LocalDateTime now
-    ) {
-        return getUnavailableReason(voucher, null, now) == null;
-    }
-
-    private Voucher.Scope parseScope(String scope) {
-        String clean = normalizeText(scope);
-
-        if (clean == null || clean.equals("all")) {
-            return null;
-        }
-
-        try {
-            return Voucher.Scope.valueOf(clean);
-        } catch (IllegalArgumentException e) {
-            throw new AppException(
-                    "Phạm vi voucher không hợp lệ",
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_VOUCHER_SCOPE"
-            );
-        }
+        return userVoucherRepo.findByUserAndVoucher(user, voucher)
+                .map(UserVoucher::getUsedCount)
+                .map(this::safeInt)
+                .orElse(0);
     }
 
     private User findUser(String email) {
@@ -279,6 +334,13 @@ public class VoucherServiceImpl implements VoucherService {
         String trimmed = value.trim();
 
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private boolean contains(
+            String value,
+            String keywordLower
+    ) {
+        return value != null && value.toLowerCase().contains(keywordLower);
     }
 
     private int safeInt(Integer value) {

@@ -10,9 +10,17 @@ import java.util.Optional;
 
 public interface UserVoucherRepository extends JpaRepository<UserVoucher, Integer> {
 
+    List<UserVoucher> findByUser(User user);
+
     List<UserVoucher> findByUserOrderBySavedAtDesc(User user);
 
-    Optional<UserVoucher> findByUserAndVoucher(User user, Voucher voucher);
+    Optional<UserVoucher> findByUserAndVoucher(
+            User user,
+            Voucher voucher
+    );
 
-    boolean existsByUserAndVoucher(User user, Voucher voucher);
+    boolean existsByUserAndVoucher(
+            User user,
+            Voucher voucher
+    );
 }
