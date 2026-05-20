@@ -1,140 +1,79 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
     ArrowLeft,
-    CheckCircle,
-    ExternalLink,
+    Ban,
+    CheckCircle2,
     FileText,
+    Loader2,
+    RotateCcw,
+    Store,
+    User,
     XCircle,
 } from 'lucide-react'
-import {
-    adminSellerApi,
-    type AdminSellerDocument,
-    type AdminSellerItem,
-} from '@/api/admin/adminSellerApi'
+import { adminSellerApi } from '@/api/admin/adminSellerApi'
 
-const documentLabels: Record<string, string> = {
-    citizen_id: 'CCCD mặt trước',
-    citizen_id_back: 'CCCD mặt sau',
-    business_license: 'Giấy phép kinh doanh',
-    tax_document: 'Giấy tờ thuế',
+function formatDate(value?: string | null) {
+    if (!value) return '-'
+
+    return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(new Date(value))
 }
 
-const REJECTION_REASONS = [
-    'Ảnh CCCD mặt trước không rõ hoặc bị che khuất',
-    'Ảnh CCCD mặt sau không rõ hoặc bị che khuất',
-    'Thông tin CCCD không khớp với hồ sơ',
-    'Thiếu giấy phép kinh doanh',
-    'Giấy phép kinh doanh không hợp lệ',
-    'Thiếu giấy tờ thuế',
-    'Giấy tờ thuế không hợp lệ',
-    'Tài liệu bị mờ, chói sáng hoặc không đủ 4 góc',
-    'Hồ sơ có dấu hiệu không hợp lệ',
-]
-
-function isImageUrl(url: string) {
-    return /\.(png|jpe?g|webp|gif|bmp)$/i.test(url)
+function statusLabel(status?: string | null) {
+    switch (status) {
+        case 'pending':
+            return 'Chờ duyệt'
+        case 'approved':
+            return 'Hoạt động'
+        case 'rejected':
+            return 'Từ chối'
+        case 'suspended':
+            return 'Tạm khóa'
+        default:
+            return 'Không rõ'
+    }
 }
 
-function statusBadge(status: string) {
-    if (status === 'pending') {
-        return 'bg-yellow-100 text-yellow-700'
+function statusClass(status?: string | null) {
+    switch (status) {
+        case 'pending':
+            return 'bg-yellow-50 text-yellow-700'
+        case 'approved':
+            return 'bg-green-50 text-green-700'
+        case 'rejected':
+            return 'bg-red-50 text-red-700'
+        case 'suspended':
+            return 'bg-gray-100 text-gray-700'
+        default:
+            return 'bg-gray-100 text-gray-700'
     }
-
-    if (status === 'approved') {
-        return 'bg-green-100 text-green-700'
-    }
-
-    if (status === 'rejected') {
-        return 'bg-red-100 text-red-700'
-    }
-
-    return 'bg-gray-100 text-gray-700'
-}
-
-function DocumentCard({ doc }: { doc: AdminSellerDocument }) {
-    return (
-        <div className="overflow-hidden rounded-xl border bg-white">
-            <div className="flex items-center justify-between border-b bg-gray-50 px-4 py-3">
-                <div>
-                    <div className="font-medium text-gray-800">
-                        {documentLabels[doc.documentType] ?? doc.documentType}
-                    </div>
-
-                    <div className="text-xs text-gray-500">
-                        Upload: {doc.uploadedAt}
-                    </div>
-                </div>
-
-                <span
-                    className={[
-                        'rounded-full px-2 py-1 text-xs',
-                        statusBadge(doc.verificationStatus),
-                    ].join(' ')}
-                >
-                    {doc.verificationStatus}
-                </span>
-            </div>
-
-            <div className="p-4">
-                {isImageUrl(doc.documentUrl) ? (
-                    <a
-                        href={doc.documentUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block"
-                    >
-                        <img
-                            src={doc.documentUrl}
-                            alt={documentLabels[doc.documentType] ?? doc.documentType}
-                            className="max-h-[420px] w-full rounded-lg border object-contain"
-                        />
-                    </a>
-                ) : (
-                    <div className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border bg-gray-50 text-gray-500">
-                        <FileText size={40} />
-
-                        <p className="mt-2 text-sm">
-                            Không thể xem trước trực tiếp file này.
-                        </p>
-                    </div>
-                )}
-
-                <a
-                    href={doc.documentUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex items-center gap-1 text-sm text-orange-600 hover:underline"
-                >
-                    Mở giấy tờ trong tab mới
-                    <ExternalLink size={14} />
-                </a>
-            </div>
-        </div>
-    )
 }
 
 export default function AdminSellerDetailPage() {
-    const { sellerId } = useParams()
+    const { sellerId } = useParams<{ sellerId: string }>()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
-
     const id = Number(sellerId)
 
-    const [checked, setChecked] = useState(false)
-    const [rejectMode, setRejectMode] = useState(false)
-    const [selectedReason, setSelectedReason] = useState('')
+    const [rejectReason, setRejectReason] = useState('')
 
     const {
         data: seller,
         isLoading,
         isError,
-    } = useQuery<AdminSellerItem>({
+    } = useQuery({
         queryKey: ['adminSellerDetail', id],
         queryFn: () => adminSellerApi.getDetail(id),
         enabled: Number.isFinite(id),
+        staleTime: 0,
     })
 
     const reviewMutation = useMutation({
@@ -145,77 +84,98 @@ export default function AdminSellerDetailPage() {
             approved: boolean
             rejectionReason?: string
         }) => adminSellerApi.review(id, approved, rejectionReason),
-
-        onSuccess: (_, variables) => {
-            toast.success(
-                variables.approved
-                    ? 'Đã duyệt seller'
-                    : 'Đã từ chối seller'
-            )
-
-            queryClient.invalidateQueries({ queryKey: ['adminSellers'] })
-            queryClient.invalidateQueries({ queryKey: ['adminSellerDetail', id] })
-
-            navigate('/admin/sellers')
+        onSuccess: () => {
+            toast.success('Đã cập nhật hồ sơ seller')
+            invalidate()
         },
-
-        onError: () => {
-            toast.error('Cập nhật trạng thái seller thất bại')
+        onError: (err: any) => {
+            toast.error(
+                err?.response?.data?.message ||
+                    'Không thể cập nhật hồ sơ seller'
+            )
         },
     })
 
-    const requiredDocs = useMemo(() => {
-        const docs = seller?.documents ?? []
+    const suspendMutation = useMutation({
+        mutationFn: (reason?: string) => adminSellerApi.suspend(id, reason),
+        onSuccess: () => {
+            toast.success('Đã tạm khóa seller')
+            invalidate()
+        },
+        onError: (err: any) => {
+            toast.error(
+                err?.response?.data?.message || 'Không thể tạm khóa seller'
+            )
+        },
+    })
 
-        return {
-            hasFrontId: docs.some((d) => d.documentType === 'citizen_id'),
-            hasBackId: docs.some((d) => d.documentType === 'citizen_id_back'),
-            hasBusinessLicense: docs.some((d) => d.documentType === 'business_license'),
-            hasTaxDocument: docs.some((d) => d.documentType === 'tax_document'),
-        }
-    }, [seller])
+    const reactivateMutation = useMutation({
+        mutationFn: () => adminSellerApi.reactivate(id),
+        onSuccess: () => {
+            toast.success('Đã kích hoạt lại seller')
+            invalidate()
+        },
+        onError: (err: any) => {
+            toast.error(
+                err?.response?.data?.message || 'Không thể kích hoạt seller'
+            )
+        },
+    })
 
-    const canReview = seller?.verificationStatus === 'pending'
-    const hasEnoughRequiredDocs =
-        requiredDocs.hasFrontId &&
-        requiredDocs.hasBackId &&
-        requiredDocs.hasBusinessLicense &&
-        requiredDocs.hasTaxDocument
+    const invalidate = () => {
+        queryClient.invalidateQueries({ queryKey: ['adminSellerDetail', id] })
+        queryClient.invalidateQueries({ queryKey: ['adminSellers'] })
+        queryClient.invalidateQueries({ queryKey: ['adminSellerStats'] })
+    }
 
     const handleApprove = () => {
-        if (!checked) {
-            toast.error('Bạn cần xác nhận đã kiểm tra giấy tờ')
-            return
-        }
+        const ok = window.confirm('Duyệt hồ sơ seller này?')
 
-        if (!hasEnoughRequiredDocs) {
-            toast.error('Hồ sơ chưa đủ tất cả giấy tờ bắt buộc')
-            return
-        }
+        if (!ok) return
 
         reviewMutation.mutate({ approved: true })
     }
 
     const handleReject = () => {
-        if (!checked) {
-            toast.error('Bạn cần xác nhận đã kiểm tra giấy tờ')
-            return
-        }
-
-        if (!selectedReason) {
-            toast.error('Vui lòng chọn lý do từ chối')
+        if (!rejectReason.trim()) {
+            toast.error('Nhập lý do từ chối')
             return
         }
 
         reviewMutation.mutate({
             approved: false,
-            rejectionReason: selectedReason,
+            rejectionReason: rejectReason.trim(),
         })
     }
 
+    const handleSuspend = () => {
+        const reason = window.prompt(
+            'Lý do tạm khóa seller',
+            'Vi phạm chính sách bán hàng'
+        )
+
+        if (reason === null) return
+
+        suspendMutation.mutate(reason.trim() || undefined)
+    }
+
+    const handleReactivate = () => {
+        const ok = window.confirm('Kích hoạt lại seller này?')
+
+        if (!ok) return
+
+        reactivateMutation.mutate()
+    }
+
+    const pendingAction =
+        reviewMutation.isPending ||
+        suspendMutation.isPending ||
+        reactivateMutation.isPending
+
     if (isLoading) {
         return (
-            <div className="p-6 text-sm text-gray-500">
+            <div className="flex min-h-[360px] items-center justify-center text-gray-500">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Đang tải hồ sơ seller...
             </div>
         )
@@ -223,251 +183,276 @@ export default function AdminSellerDetailPage() {
 
     if (isError || !seller) {
         return (
-            <div className="p-6 text-sm text-red-500">
-                Không thể tải hồ sơ seller
+            <div className="p-6">
+                <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="text-sm text-orange-600 hover:underline"
+                >
+                    ← Quay lại
+                </button>
+                <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 p-6 text-red-700">
+                    Không tìm thấy hồ sơ seller.
+                </div>
             </div>
         )
     }
 
     return (
-        <div className="p-6">
-            <div className="mb-6 flex items-center justify-between">
+        <div className="space-y-6 p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <Link
-                        to="/admin/sellers"
-                        className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-orange-600"
                     >
                         <ArrowLeft size={16} />
-                        Quay lại danh sách
-                    </Link>
+                        Quay lại
+                    </button>
 
-                    <h1 className="text-xl font-semibold text-gray-800">
+                    <h1 className="text-2xl font-bold text-gray-900">
                         Hồ sơ seller #{seller.sellerId}
                     </h1>
-
                     <p className="mt-1 text-sm text-gray-500">
-                        Xem thông tin và giấy tờ trước khi xác nhận trạng thái.
+                        Kiểm tra thông tin, giấy tờ và trạng thái shop.
                     </p>
                 </div>
 
-                <span
-                    className={[
-                        'rounded-full px-3 py-1 text-sm',
-                        statusBadge(seller.verificationStatus),
-                    ].join(' ')}
-                >
-                    {seller.verificationStatus}
-                </span>
+                <div className="flex flex-wrap gap-2">
+                    {seller.verificationStatus === 'pending' && (
+                        <>
+                            <button
+                                type="button"
+                                disabled={pendingAction}
+                                onClick={handleApprove}
+                                className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                            >
+                                <CheckCircle2 size={16} />
+                                Duyệt seller
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={pendingAction}
+                                onClick={handleReject}
+                                className="inline-flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+                            >
+                                <XCircle size={16} />
+                                Từ chối
+                            </button>
+                        </>
+                    )}
+
+                    {seller.verificationStatus === 'approved' && (
+                        <button
+                            type="button"
+                            disabled={pendingAction}
+                            onClick={handleSuspend}
+                            className="inline-flex items-center gap-2 rounded-xl border border-red-100 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                        >
+                            <Ban size={16} />
+                            Tạm khóa
+                        </button>
+                    )}
+
+                    {seller.verificationStatus === 'suspended' && (
+                        <button
+                            type="button"
+                            disabled={pendingAction}
+                            onClick={handleReactivate}
+                            className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+                        >
+                            <RotateCcw size={16} />
+                            Mở lại
+                        </button>
+                    )}
+                </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-                <div className="space-y-6">
-                    <div className="rounded-xl border bg-white p-5">
-                        <h2 className="mb-4 font-semibold text-gray-800">
-                            Thông tin người đăng ký
+            <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center gap-2">
+                        <User className="h-5 w-5 text-orange-500" />
+                        <h2 className="font-semibold text-gray-900">
+                            Thông tin người bán
                         </h2>
-
-                        <div className="space-y-3 text-sm">
-                            <div>
-                                <div className="text-gray-400">Họ tên</div>
-                                <div className="font-medium text-gray-800">
-                                    {seller.fullName || '-'}
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="text-gray-400">Email</div>
-                                <div className="text-gray-800">
-                                    {seller.email}
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="text-gray-400">Số điện thoại</div>
-                                <div className="text-gray-800">
-                                    {seller.phoneNumber}
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="text-gray-400">Số CCCD</div>
-                                <div className="text-gray-800">
-                                    {seller.identityNumber ?? '-'}
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="text-gray-400">Mã thuế</div>
-                                <div className="text-gray-800">
-                                    {seller.taxCode ?? '-'}
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="text-gray-400">Ngày tạo hồ sơ</div>
-                                <div className="text-gray-800">
-                                    {seller.createdAt}
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
-                    <div className="rounded-xl border bg-white p-5">
-                        <h2 className="mb-4 font-semibold text-gray-800">
-                            Kiểm tra bắt buộc
-                        </h2>
-
-                        <div className="space-y-2 text-sm">
-                            <div
-                                className={
-                                    requiredDocs.hasFrontId
-                                        ? 'text-green-600'
-                                        : 'text-red-600'
-                                }
-                            >
-                                {requiredDocs.hasFrontId ? '✓' : '✕'} CCCD mặt trước
-                            </div>
-
-                            <div
-                                className={
-                                    requiredDocs.hasBackId
-                                        ? 'text-green-600'
-                                        : 'text-red-600'
-                                }
-                            >
-                                {requiredDocs.hasBackId ? '✓' : '✕'} CCCD mặt sau
-                            </div>
-
-                            <div
-                                className={
-                                    requiredDocs.hasBusinessLicense
-                                        ? 'text-green-600'
-                                        : 'text-red-600'
-                                }
-                            >
-                                {requiredDocs.hasBusinessLicense ? '✓' : '✕'} Giấy phép kinh doanh
-                            </div>
-
-                            <div
-                                className={
-                                    requiredDocs.hasTaxDocument
-                                        ? 'text-green-600'
-                                        : 'text-red-600'
-                                }
-                            >
-                                {requiredDocs.hasTaxDocument ? '✓' : '✕'} Giấy tờ thuế
-                            </div>
-                        </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <Info label="Tên" value={seller.fullName} />
+                        <Info label="Username" value={seller.username} />
+                        <Info label="Email" value={seller.email} />
+                        <Info label="Số điện thoại" value={seller.phoneNumber} />
+                        <Info label="CCCD" value={seller.identityNumber} />
+                        <Info label="Mã thuế" value={seller.taxCode} />
+                        <Info label="Ngày đăng ký" value={formatDate(seller.createdAt)} />
+                        <Info label="Ngày duyệt" value={formatDate(seller.verifiedAt)} />
                     </div>
 
-                    {canReview && (
-                        <div className="rounded-xl border bg-white p-5">
-                            <h2 className="mb-4 font-semibold text-gray-800">
-                                Xác nhận trạng thái
-                            </h2>
+                    <div className="mt-5">
+                        <span
+                            className={[
+                                'rounded-full px-2.5 py-1 text-xs font-medium',
+                                statusClass(seller.verificationStatus),
+                            ].join(' ')}
+                        >
+                            {statusLabel(seller.verificationStatus)}
+                        </span>
+                    </div>
 
-                            <label className="flex items-start gap-2 text-sm text-gray-700">
-                                <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={(e) => setChecked(e.target.checked)}
-                                    className="mt-1"
-                                />
-                                <span>
-                                    Tôi đã kiểm tra thông tin và giấy tờ của hồ sơ này.
-                                </span>
+                    {seller.verificationStatus === 'pending' && (
+                        <div className="mt-5">
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                Lý do từ chối
                             </label>
+                            <textarea
+                                value={rejectReason}
+                                onChange={(e) => setRejectReason(e.target.value)}
+                                rows={4}
+                                placeholder="Nhập lý do nếu từ chối hồ sơ..."
+                                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
+                            />
+                        </div>
+                    )}
 
-                            {rejectMode && (
-                                <div className="mt-4 space-y-2">
-                                    <p className="text-sm font-medium text-gray-700">
-                                        Chọn lý do từ chối
-                                    </p>
+                    {seller.rejectionReason && (
+                        <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                            {seller.rejectionReason}
+                        </div>
+                    )}
+                </section>
 
-                                    <div className="space-y-2">
-                                        {REJECTION_REASONS.map((item) => (
-                                            <label
-                                                key={item}
-                                                className={[
-                                                    'flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm',
-                                                    selectedReason === item
-                                                        ? 'border-red-400 bg-red-50 text-red-700'
-                                                        : 'border-gray-200 bg-white text-gray-700 hover:border-red-300',
-                                                ].join(' ')}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="rejectReason"
-                                                    value={item}
-                                                    checked={selectedReason === item}
-                                                    onChange={() => setSelectedReason(item)}
-                                                    className="mt-1"
-                                                />
+                <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center gap-2">
+                        <Store className="h-5 w-5 text-orange-500" />
+                        <h2 className="font-semibold text-gray-900">
+                            Shop
+                        </h2>
+                    </div>
 
-                                                <span>{item}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
+                    {seller.shop ? (
+                        <div>
+                            {seller.shop.bannerUrl && (
+                                <img
+                                    src={seller.shop.bannerUrl}
+                                    alt={seller.shop.shopName}
+                                    className="mb-4 h-28 w-full rounded-xl object-cover"
+                                />
                             )}
 
-                            <div className="mt-4 flex flex-wrap gap-2">
-                                <button
-                                    disabled={reviewMutation.isPending}
-                                    onClick={handleApprove}
-                                    className="inline-flex items-center gap-1 rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
-                                >
-                                    <CheckCircle size={16} />
-                                    Duyệt seller
-                                </button>
-
-                                {!rejectMode ? (
-                                    <button
-                                        onClick={() => {
-                                            setRejectMode((prev) => !prev)
-                                            setSelectedReason('')
-                                        }}
-                                        className="inline-flex items-center gap-1 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-                                    >
-                                        <XCircle size={16} />
-                                        {rejectMode ? 'Hủy từ chối' : 'Từ chối'}
-                                    </button>
+                            <div className="flex items-center gap-3">
+                                {seller.shop.avatarUrl ? (
+                                    <img
+                                        src={seller.shop.avatarUrl}
+                                        alt={seller.shop.shopName}
+                                        className="h-14 w-14 rounded-full object-cover"
+                                    />
                                 ) : (
-                                    <button
-                                        disabled={reviewMutation.isPending}
-                                        onClick={handleReject}
-                                        className="inline-flex items-center gap-1 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-                                    >
-                                        <XCircle size={16} />
-                                        Xác nhận từ chối
-                                    </button>
+                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-50 text-orange-500">
+                                        <Store />
+                                    </div>
                                 )}
+
+                                <div>
+                                    <Link
+                                        to={`/shops/${
+                                            seller.shop.shopSlug ||
+                                            seller.shop.shopId
+                                        }`}
+                                        className="font-semibold text-orange-600 hover:underline"
+                                    >
+                                        {seller.shop.shopName}
+                                    </Link>
+                                    <p className="mt-0.5 text-xs text-gray-500">
+                                        Trạng thái: {seller.shop.shopStatus}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p className="mt-4 text-sm text-gray-600">
+                                {seller.shop.description || 'Chưa có mô tả shop.'}
+                            </p>
+
+                            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                <Info label="Rating" value={seller.shop.rating ?? 0} />
+                                <Info
+                                    label="Người theo dõi"
+                                    value={seller.shop.followerCount ?? 0}
+                                />
                             </div>
                         </div>
-                    )}
-                </div>
-
-                <div>
-                    <h2 className="mb-4 font-semibold text-gray-800">
-                        Giấy tờ đã upload
-                    </h2>
-
-                    {seller.documents.length === 0 ? (
-                        <div className="rounded-xl border bg-white p-6 text-sm text-gray-500">
-                            Hồ sơ này chưa upload giấy tờ.
-                        </div>
                     ) : (
-                        <div className="grid gap-4">
-                            {seller.documents.map((doc) => (
-                                <DocumentCard
-                                    key={doc.documentId}
-                                    doc={doc}
-                                />
-                            ))}
+                        <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">
+                            Seller đã được duyệt nhưng chưa tạo shop.
                         </div>
                     )}
-                </div>
+                </section>
             </div>
+
+            <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-orange-500" />
+                    <h2 className="font-semibold text-gray-900">
+                        Giấy tờ xác minh
+                    </h2>
+                </div>
+
+                {seller.documents.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">
+                        Chưa có giấy tờ.
+                    </div>
+                ) : (
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        {seller.documents.map((doc) => (
+                            <a
+                                key={doc.documentId}
+                                href={doc.documentUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="group overflow-hidden rounded-xl border border-gray-100 bg-gray-50 hover:border-orange-200"
+                            >
+                                <div className="aspect-[4/3] bg-white">
+                                    <img
+                                        src={doc.documentUrl}
+                                        alt={doc.documentType}
+                                        className="h-full w-full object-cover"
+                                    />
+                                </div>
+
+                                <div className="p-3">
+                                    <p className="text-sm font-medium text-gray-900 group-hover:text-orange-600">
+                                        {doc.documentType}
+                                    </p>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        {doc.verificationStatus} ·{' '}
+                                        {formatDate(doc.uploadedAt)}
+                                    </p>
+                                </div>
+                            </a>
+                        ))}
+                    </div>
+                )}
+            </section>
+        </div>
+    )
+}
+
+function Info({
+    label,
+    value,
+}: {
+    label: string
+    value?: string | number | null
+}) {
+    return (
+        <div>
+            <p className="text-xs text-gray-400">{label}</p>
+            <p className="mt-1 break-words text-sm font-medium text-gray-800">
+                {value === null || value === undefined || value === ''
+                    ? '-'
+                    : value}
+            </p>
         </div>
     )
 }

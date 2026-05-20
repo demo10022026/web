@@ -7,13 +7,13 @@ import com.ecommerce.exception.AppException;
 import com.ecommerce.repository.*;
 import com.ecommerce.service.ImageStorageService;
 import com.ecommerce.service.SellerOnboardingService;
+import com.ecommerce.util.UploadFolders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import com.ecommerce.util.UploadFolders;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,14 +24,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SellerOnboardingServiceImpl implements SellerOnboardingService {
 
-    private final UserRepository           userRepo;
-    private final SellerRepository         sellerRepo;
+    private final UserRepository userRepo;
+    private final SellerRepository sellerRepo;
     private final SellerDocumentRepository docRepo;
-    private final ImageStorageService      imageStorage;
+    private final ImageStorageService imageStorage;
 
-    // ─────────────────────────────────────────────────────────
-    // 1. Apply
-    // ─────────────────────────────────────────────────────────
     @Override
     @Transactional
     public SellerProfileResponse apply(String userEmail, ApplySellerRequest request) {
@@ -44,23 +41,29 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
                 case approved:
                     throw new AppException(
                             "Bạn đã là seller",
-                            HttpStatus.CONFLICT, "ALREADY_SELLER");
+                            HttpStatus.CONFLICT,
+                            "ALREADY_SELLER"
+                    );
                 case pending:
                     throw new AppException(
                             "Hồ sơ đang chờ xét duyệt",
-                            HttpStatus.CONFLICT, "APPLICATION_PENDING");
+                            HttpStatus.CONFLICT,
+                            "APPLICATION_PENDING"
+                    );
                 case rejected:
-                    // Cho phép nộp lại
                     existing.setIdentityNumber(request.getIdentityNumber());
                     existing.setTaxCode(request.getTaxCode());
                     existing.setVerificationStatus(SellerProfile.Status.pending);
                     existing.setRejectionReason(null);
+                    existing.setVerifiedAt(null);
                     log.info("Seller {} nộp lại hồ sơ", userEmail);
                     return toResponse(sellerRepo.save(existing));
                 default:
                     throw new AppException(
                             "Tài khoản seller bị tạm khóa, vui lòng liên hệ hỗ trợ",
-                            HttpStatus.FORBIDDEN, "SELLER_SUSPENDED");
+                            HttpStatus.FORBIDDEN,
+                            "SELLER_SUSPENDED"
+                    );
             }
         }
 
@@ -75,9 +78,6 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
         return toResponse(sellerRepo.save(profile));
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 2. Upload giấy tờ
-    // ─────────────────────────────────────────────────────────
     @Override
     @Transactional
     public SellerProfileResponse.DocumentResponse uploadDocument(
@@ -91,12 +91,8 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
         validateDocumentChangeLimit(profile, docType);
 
         String folder = UploadFolders.sellerDocument(profile.getSellerId(), docType);
-
-        // Upload file mới trước.
-        // Nếu upload lỗi thì không mất giấy tờ cũ.
         String url = imageStorage.upload(file, folder);
 
-        // Sau khi upload thành công mới xóa bản cũ cùng loại.
         docRepo.deleteBySellerAndDocumentType(profile, docType);
 
         SellerDocument doc = SellerDocument.builder()
@@ -106,7 +102,6 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
                 .verificationStatus(SellerDocument.VerifyStatus.pending)
                 .build();
 
-        // Nếu hồ sơ từng bị từ chối, user thay giấy tờ thì đưa về chờ duyệt lại.
         if (profile.getVerificationStatus() == SellerProfile.Status.rejected) {
             profile.setVerificationStatus(SellerProfile.Status.pending);
             profile.setRejectionReason(null);
@@ -115,22 +110,15 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
         }
 
         log.info("Seller {} thay đổi/upload {} thành công", userEmail, docType);
-
         return toDocResponse(docRepo.save(doc));
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 3. Lấy trạng thái hồ sơ
-    // ─────────────────────────────────────────────────────────
     @Override
     @Transactional(readOnly = true)
     public SellerProfileResponse getMyProfile(String userEmail) {
         return toResponse(findProfile(userEmail));
     }
 
-    // ─────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────
     private User findUser(String email) {
         return userRepo.findByEmail(email)
                 .orElseThrow(() -> AppException.notFound("User"));
@@ -138,39 +126,43 @@ public class SellerOnboardingServiceImpl implements SellerOnboardingService {
 
     private SellerProfile findProfile(String email) {
         User user = findUser(email);
+
         return sellerRepo.findByUser(user)
                 .orElseThrow(() -> new AppException(
                         "Bạn chưa đăng ký làm seller",
-                        HttpStatus.FORBIDDEN, "NOT_SELLER"));
+                        HttpStatus.FORBIDDEN,
+                        "NOT_SELLER"
+                ));
     }
 
-    private SellerProfileResponse toResponse(SellerProfile p) {
+    private SellerProfileResponse toResponse(SellerProfile profile) {
         List<SellerProfileResponse.DocumentResponse> docs = docRepo
-                .findBySeller(p).stream()
+                .findBySeller(profile)
+                .stream()
                 .map(this::toDocResponse)
                 .collect(Collectors.toList());
 
         return SellerProfileResponse.builder()
-                .sellerId(p.getSellerId())
-                .fullName(p.getUser().getFullName())
-                .email(p.getUser().getEmail())
-                .identityNumber(p.getIdentityNumber())
-                .taxCode(p.getTaxCode())
-                .verificationStatus(p.getVerificationStatus().name())
-                .rejectionReason(p.getRejectionReason())
-                .verifiedAt(p.getVerifiedAt())
-                .createdAt(p.getCreatedAt())
+                .sellerId(profile.getSellerId())
+                .fullName(profile.getUser().getFullName())
+                .email(profile.getUser().getEmail())
+                .identityNumber(profile.getIdentityNumber())
+                .taxCode(profile.getTaxCode())
+                .verificationStatus(profile.getVerificationStatus().name())
+                .rejectionReason(profile.getRejectionReason())
+                .verifiedAt(profile.getVerifiedAt())
+                .createdAt(profile.getCreatedAt())
                 .documents(docs)
                 .build();
     }
 
-    private SellerProfileResponse.DocumentResponse toDocResponse(SellerDocument d) {
+    private SellerProfileResponse.DocumentResponse toDocResponse(SellerDocument document) {
         return SellerProfileResponse.DocumentResponse.builder()
-                .documentId(d.getDocumentId())
-                .documentType(d.getDocumentType().name())
-                .documentUrl(d.getDocumentUrl())
-                .verificationStatus(d.getVerificationStatus().name())
-                .uploadedAt(d.getUploadedAt())
+                .documentId(document.getDocumentId())
+                .documentType(document.getDocumentType().name())
+                .documentUrl(document.getDocumentUrl())
+                .verificationStatus(document.getVerificationStatus().name())
+                .uploadedAt(document.getUploadedAt())
                 .build();
     }
 

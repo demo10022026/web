@@ -1,24 +1,24 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import {
-    LayoutDashboard,
-    Package,
-    Store,
-    Users,
-    ShoppingBag,
     BarChart3,
     Home,
+    LayoutDashboard,
+    Package,
+    ShoppingBag,
+    Store,
+    Users,
 } from 'lucide-react'
 
 const navItems = [
     {
-        to: '/admin/products',
-        label: 'Sản phẩm',
-        icon: Package,
-    },
-    {
         to: '/admin/sellers',
         label: 'Người bán',
         icon: Store,
+    },
+    {
+        to: '/admin/products',
+        label: 'Sản phẩm',
+        icon: Package,
     },
     {
         to: '/admin/users',
@@ -49,7 +49,9 @@ export default function AdminLayout() {
                         <LayoutDashboard size={20} />
                     </div>
                     <div>
-                        <h1 className="text-base font-bold text-gray-900">Admin</h1>
+                        <h1 className="text-base font-bold text-gray-900">
+                            Admin
+                        </h1>
                         <p className="text-xs text-gray-500">ShopVN Console</p>
                     </div>
                 </div>
@@ -68,8 +70,8 @@ export default function AdminLayout() {
                                     <Icon size={18} />
                                     <span>{item.label}</span>
                                     <span className="ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-[10px]">
-                    sau
-                  </span>
+                                        sau
+                                    </span>
                                 </button>
                             )
                         }
@@ -80,7 +82,7 @@ export default function AdminLayout() {
                                 to={item.to}
                                 className={({ isActive }) =>
                                     [
-                                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
                                         isActive
                                             ? 'bg-orange-50 text-orange-600'
                                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
@@ -97,7 +99,7 @@ export default function AdminLayout() {
                 <div className="absolute bottom-4 left-4 right-4">
                     <Link
                         to="/"
-                        className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                        className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
                     >
                         <Home size={17} />
                         Về trang chủ
@@ -105,7 +107,7 @@ export default function AdminLayout() {
                 </div>
             </aside>
 
-            <main className="ml-64 min-h-screen p-6">
+            <main className="ml-64 min-h-screen">
                 <Outlet />
             </main>
         </div>
