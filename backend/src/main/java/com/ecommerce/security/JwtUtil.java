@@ -63,6 +63,16 @@ public class JwtUtil {
         return false;
     }
 
+    /** kiểm tra hạn */
+    public boolean isTokenExpired(String token) {
+        try {
+            parseClaims(token);
+            return false;
+        } catch (ExpiredJwtException e) {
+            return true;
+        }
+    }
+
     private Claims parseClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())

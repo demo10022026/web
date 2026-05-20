@@ -58,14 +58,14 @@ const DOCS: {
   {
     type: 'business_license',
     label: 'Giấy phép kinh doanh',
-    hint: 'Không bắt buộc với người bán cá nhân',
-    required: false,
+    hint: 'Bắt buộc để xác minh tư cách người bán',
+    required: true,
   },
   {
     type: 'tax_document',
     label: 'Giấy tờ thuế',
     hint: 'MST cá nhân hoặc giấy tờ thuế doanh nghiệp',
-    required: false,
+    required: true,
   },
 ]
 
@@ -200,20 +200,21 @@ export default function BecomeSellerPage() {
     },
   })
 
+  const requiredDocTypes = useMemo(
+      () => DOCS.filter((doc) => doc.required).map((doc) => doc.type),
+      []
+  )
+
   const canProceed = useMemo(() => {
-    return uploaded.has('citizen_id') && uploaded.has('citizen_id_back')
-  }, [uploaded])
+    return requiredDocTypes.every((type) => uploaded.has(type))
+  }, [requiredDocTypes, uploaded])
 
   const missingMsg = useMemo(() => {
-    if (!uploaded.has('citizen_id')) {
-      return 'Vui lòng upload mặt trước CCCD'
-    }
+    const missingDoc = DOCS.find((doc) => doc.required && !uploaded.has(doc.type))
 
-    if (!uploaded.has('citizen_id_back')) {
-      return 'Vui lòng upload mặt sau CCCD'
-    }
+    if (!missingDoc) return ''
 
-    return ''
+    return `Vui lòng upload ${missingDoc.label}`
   }, [uploaded])
 
   useEffect(() => {
@@ -425,7 +426,7 @@ export default function BecomeSellerPage() {
                   </h2>
 
                   <p className="mt-1 text-sm text-gray-500">
-                    CCCD / CMND mặt trước và mặt sau là bắt buộc.
+                    Vui lòng upload đầy đủ tất cả giấy tờ bắt buộc để gửi hồ sơ xét duyệt.
                   </p>
                 </div>
 

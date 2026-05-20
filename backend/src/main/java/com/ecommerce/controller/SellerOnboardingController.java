@@ -3,6 +3,7 @@ package com.ecommerce.controller;
 import com.ecommerce.dto.request.ApplySellerRequest;
 import com.ecommerce.dto.response.SellerProfileResponse;
 import com.ecommerce.entity.SellerDocument;
+import com.ecommerce.exception.AppException;
 import com.ecommerce.service.SellerOnboardingService;
 import com.ecommerce.util.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,7 +36,7 @@ public class SellerOnboardingController {
             @AuthenticationPrincipal UserDetails user,
             @Valid @RequestBody ApplySellerRequest request) {
 
-        SellerProfileResponse data = service.apply(user.getUsername(), request);
+        SellerProfileResponse data = service.apply(requireEmail(user), request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -63,7 +64,7 @@ public class SellerOnboardingController {
 
         try {
             SellerProfileResponse.DocumentResponse data =
-                    service.uploadDocument(user.getUsername(), docType, file);
+                    service.uploadDocument(requireEmail(user), docType, file);
 
             return ResponseEntity.ok(ApiResponse.success("Upload thành công", data));
         } catch (RuntimeException e) {
@@ -83,6 +84,18 @@ public class SellerOnboardingController {
             @AuthenticationPrincipal UserDetails user) {
 
         return ResponseEntity.ok(
-                ApiResponse.success(service.getMyProfile(user.getUsername())));
+                ApiResponse.success(service.getMyProfile(requireEmail(user))));
+    }
+
+    private String requireEmail(UserDetails user) {
+        if (user == null) {
+            throw new AppException(
+                    "Phiên đăng nhập đã hết hạn",
+                    HttpStatus.UNAUTHORIZED,
+                    "UNAUTHORIZED"
+            );
+        }
+
+        return user.getUsername();
     }
 }

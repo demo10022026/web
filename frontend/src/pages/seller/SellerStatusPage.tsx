@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
     AlertCircle,
     ArrowRight,
@@ -9,13 +9,65 @@ import {
     Loader2,
     ShieldAlert,
     Store,
+    Upload,
     XCircle,
 } from 'lucide-react'
 import { sellerOnboardingApi } from '@/api/sellerOnboardingApi'
 import { useSellerStore } from '@/store/sellerStore'
 import type { SellerDocument, SellerProfile, SellerStatus } from '@/types/seller.types'
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
+
+type DocType = SellerDocument['documentType']
+
+const REQUIRED_DOCS: {
+    type: DocType
+    label: string
+    hint: string
+}[] = [
+    {
+        type: 'citizen_id',
+        label: 'CCCD / CMND — Mặt trước',
+        hint: 'Ảnh rõ nét, đủ 4 góc, không bị chói sáng',
+    },
+    {
+        type: 'citizen_id_back',
+        label: 'CCCD / CMND — Mặt sau',
+        hint: 'Ảnh rõ nét, đủ 4 góc, không bị chói sáng',
+    },
+    {
+        type: 'business_license',
+        label: 'Giấy phép kinh doanh',
+        hint: 'Bắt buộc để xác minh tư cách người bán',
+    },
+    {
+        type: 'tax_document',
+        label: 'Giấy tờ thuế',
+        hint: 'MST cá nhân hoặc giấy tờ thuế doanh nghiệp',
+    },
+]
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024
+
+const ALLOWED_FILE_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/pdf',
+]
+
+function validateFile(file: File) {
+    if (file.size > MAX_FILE_SIZE) {
+        return 'File tối đa 5MB'
+    }
+
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+        return 'Chỉ hỗ trợ JPG, PNG, WEBP hoặc PDF'
+    }
+
+    return null
+}
 
 function formatDate(value?: string) {
     if (!value) return '-'
@@ -83,22 +135,6 @@ function statusConfig(status: SellerStatus) {
             }
     }
 }
-
-function docLabel(type: SellerDocument['documentType']) {
-    switch (type) {
-        case 'citizen_id':
-            return 'CCCD / CMND — Mặt trước'
-        case 'citizen_id_back':
-            return 'CCCD / CMND — Mặt sau'
-        case 'business_license':
-            return 'Giấy phép kinh doanh'
-        case 'tax_document':
-            return 'Giấy tờ thuế'
-        default:
-            return type
-    }
-}
-
 function docStatusLabel(status: SellerDocument['verificationStatus']) {
     switch (status) {
         case 'approved':
@@ -126,54 +162,50 @@ function docStatusClass(status: SellerDocument['verificationStatus']) {
 function RequiredDocChecklist({ profile }: { profile: SellerProfile }) {
     const uploadedTypes = new Set(profile.documents?.map((d) => d.documentType))
 
-    const items = [
-        {
-            type: 'citizen_id',
-            label: 'CCCD / CMND mặt trước',
-            done: uploadedTypes.has('citizen_id'),
-        },
-        {
-            type: 'citizen_id_back',
-            label: 'CCCD / CMND mặt sau',
-            done: uploadedTypes.has('citizen_id_back'),
-        },
-    ]
-
     return (
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">
                 Điều kiện hồ sơ
             </h2>
 
-            <div className="mt-4 space-y-3">
-                {items.map((item) => (
-                    <div
-                        key={item.type}
-                        className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3"
-                    >
-                        <div className="flex items-center gap-3">
-                            {item.done ? (
-                                <CheckCircle2 className="text-emerald-600" size={20} />
-                            ) : (
-                                <XCircle className="text-red-500" size={20} />
-                            )}
-                            <span className="text-sm font-medium text-gray-800">
-                {item.label}
-              </span>
-                        </div>
+            <p className="mt-1 text-sm text-gray-500">
+                Hồ sơ cần đủ tất cả giấy tờ dưới đây để được xét duyệt.
+            </p>
 
-                        <span
-                            className={[
-                                'rounded-full border px-2.5 py-1 text-xs font-medium',
-                                item.done
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                    : 'border-red-200 bg-red-50 text-red-700',
-                            ].join(' ')}
+            <div className="mt-4 space-y-3">
+                {REQUIRED_DOCS.map((item) => {
+                    const done = uploadedTypes.has(item.type)
+
+                    return (
+                        <div
+                            key={item.type}
+                            className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3"
                         >
-              {item.done ? 'Đã upload' : 'Thiếu'}
-            </span>
-                    </div>
-                ))}
+                            <div className="flex items-center gap-3">
+                                {done ? (
+                                    <CheckCircle2 className="text-emerald-600" size={20} />
+                                ) : (
+                                    <XCircle className="text-red-500" size={20} />
+                                )}
+
+                                <span className="text-sm font-medium text-gray-800">
+                                    {item.label}
+                                </span>
+                            </div>
+
+                            <span
+                                className={[
+                                    'rounded-full border px-2.5 py-1 text-xs font-medium',
+                                    done
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border-red-200 bg-red-50 text-red-700',
+                                ].join(' ')}
+                            >
+                                {done ? 'Đã upload' : 'Thiếu'}
+                            </span>
+                        </div>
+                    )
+                })}
             </div>
         </div>
     )
@@ -181,6 +213,8 @@ function RequiredDocChecklist({ profile }: { profile: SellerProfile }) {
 
 export default function SellerStatusPage() {
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
+    const [uploadingType, setUploadingType] = useState<DocType | null>(null)
 
     const {
         setStatus,
@@ -200,6 +234,45 @@ export default function SellerStatusPage() {
         retry: false,
         staleTime: 0,
     })
+
+    const documentMap = useMemo(() => {
+        const map = new Map<DocType, SellerDocument>()
+
+        for (const doc of profile?.documents ?? []) {
+            map.set(doc.documentType, doc)
+        }
+
+        return map
+    }, [profile?.documents])
+
+    const canChangeDocuments =
+        profile?.verificationStatus === 'pending' ||
+        profile?.verificationStatus === 'rejected'
+
+    const handleUploadDocument = async (type: DocType, file: File) => {
+        const fileError = validateFile(file)
+
+        if (fileError) {
+            toast.error(fileError)
+            return
+        }
+
+        setUploadingType(type)
+
+        try {
+            await sellerOnboardingApi.uploadDocument(type, file)
+
+            await queryClient.invalidateQueries({
+                queryKey: ['sellerMyProfile'],
+            })
+
+            toast.success('Cập nhật giấy tờ thành công')
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || 'Cập nhật giấy tờ thất bại')
+        } finally {
+            setUploadingType(null)
+        }
+    }
 
     useEffect(() => {
         if (profile) {
@@ -447,54 +520,114 @@ export default function SellerStatusPage() {
                             <h2 className="text-lg font-semibold text-gray-900">
                                 Giấy tờ đã upload
                             </h2>
+
                             <p className="mt-1 text-sm text-gray-500">
-                                Danh sách tài liệu dùng để xét duyệt seller.
+                                Có thể xem, bổ sung hoặc thay đổi giấy tờ khi hồ sơ đang chờ duyệt hoặc bị từ chối.
                             </p>
                         </div>
 
                         <FileText className="text-gray-300" size={28} />
                     </div>
 
-                    {!profile.documents?.length ? (
-                        <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
-                            Chưa có giấy tờ nào được upload.
-                        </div>
-                    ) : (
-                        <div className="grid gap-3 md:grid-cols-2">
-                            {profile.documents.map((doc) => (
+                    <div className="grid gap-3 md:grid-cols-2">
+                        {REQUIRED_DOCS.map((item) => {
+                            const doc = documentMap.get(item.type)
+                            const isUploading = uploadingType === item.type
+
+                            return (
                                 <div
-                                    key={doc.documentId}
-                                    className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-gray-50 p-4"
+                                    key={item.type}
+                                    className="rounded-xl border border-gray-100 bg-gray-50 p-4"
                                 >
-                                    <div className="min-w-0">
-                                        <p className="font-medium text-gray-900">
-                                            {docLabel(doc.documentType)}
-                                        </p>
-                                        <p className="mt-1 text-xs text-gray-500">
-                                            Upload: {formatDate(doc.uploadedAt)}
-                                        </p>
-                                        <a
-                                            href={doc.documentUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="mt-2 inline-block text-sm font-medium text-orange-600 hover:underline"
-                                        >
-                                            Xem tài liệu
-                                        </a>
+                                    <div className="mb-3 flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <p className="font-medium text-gray-900">
+                                                {item.label}
+                                            </p>
+
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                {item.hint}
+                                            </p>
+
+                                            {doc ? (
+                                                <>
+                                                    <p className="mt-2 text-xs text-gray-500">
+                                                        Upload: {formatDate(doc.uploadedAt)}
+                                                    </p>
+
+                                                    <a
+                                                        href={doc.documentUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="mt-2 inline-block text-sm font-medium text-orange-600 hover:underline"
+                                                    >
+                                                        Xem tài liệu
+                                                    </a>
+                                                </>
+                                            ) : (
+                                                <p className="mt-2 text-sm text-red-600">
+                                                    Chưa upload giấy tờ này
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {doc ? (
+                                            <span
+                                                className={[
+                                                    'shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold',
+                                                    docStatusClass(doc.verificationStatus),
+                                                ].join(' ')}
+                                            >
+                                {docStatusLabel(doc.verificationStatus)}
+                            </span>
+                                        ) : (
+                                            <span className="shrink-0 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+                                Thiếu
+                            </span>
+                                        )}
                                     </div>
 
-                                    <span
-                                        className={[
-                                            'shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold',
-                                            docStatusClass(doc.verificationStatus),
-                                        ].join(' ')}
-                                    >
-                    {docStatusLabel(doc.verificationStatus)}
-                  </span>
+                                    {canChangeDocuments ? (
+                                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:border-orange-400 hover:text-orange-600">
+                                            {isUploading ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Upload className="h-4 w-4" />
+                                            )}
+
+                                            <span>
+                                {isUploading
+                                    ? 'Đang upload...'
+                                    : doc
+                                        ? 'Thay đổi giấy tờ'
+                                        : 'Upload giấy tờ'}
+                            </span>
+
+                                            <input
+                                                type="file"
+                                                accept="image/*,.pdf"
+                                                disabled={isUploading || uploadingType !== null}
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0]
+
+                                                    if (file) {
+                                                        handleUploadDocument(item.type, file)
+                                                    }
+
+                                                    e.currentTarget.value = ''
+                                                }}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                    ) : (
+                                        <p className="mt-2 text-xs text-gray-400">
+                                            Hồ sơ đã được xử lý, không thể thay đổi giấy tờ tại bước này.
+                                        </p>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                            )
+                        })}
+                    </div>
                 </section>
             </div>
         </div>

@@ -158,12 +158,17 @@ export default function AdminSellerDetailPage() {
         return {
             hasFrontId: docs.some((d) => d.documentType === 'citizen_id'),
             hasBackId: docs.some((d) => d.documentType === 'citizen_id_back'),
+            hasBusinessLicense: docs.some((d) => d.documentType === 'business_license'),
+            hasTaxDocument: docs.some((d) => d.documentType === 'tax_document'),
         }
     }, [seller])
 
     const canReview = seller?.verificationStatus === 'pending'
     const hasEnoughRequiredDocs =
-        requiredDocs.hasFrontId && requiredDocs.hasBackId
+        requiredDocs.hasFrontId &&
+        requiredDocs.hasBackId &&
+        requiredDocs.hasBusinessLicense &&
+        requiredDocs.hasTaxDocument
 
     const handleApprove = () => {
         if (!checked) {
@@ -172,7 +177,7 @@ export default function AdminSellerDetailPage() {
         }
 
         if (!hasEnoughRequiredDocs) {
-            toast.error('Hồ sơ thiếu CCCD mặt trước hoặc mặt sau')
+            toast.error('Hồ sơ chưa đủ tất cả giấy tờ bắt buộc')
             return
         }
 
@@ -319,6 +324,26 @@ export default function AdminSellerDetailPage() {
                                 }
                             >
                                 {requiredDocs.hasBackId ? '✓' : '✕'} CCCD mặt sau
+                            </div>
+
+                            <div
+                                className={
+                                    requiredDocs.hasBusinessLicense
+                                        ? 'text-green-600'
+                                        : 'text-red-600'
+                                }
+                            >
+                                {requiredDocs.hasBusinessLicense ? '✓' : '✕'} Giấy phép kinh doanh
+                            </div>
+
+                            <div
+                                className={
+                                    requiredDocs.hasTaxDocument
+                                        ? 'text-green-600'
+                                        : 'text-red-600'
+                                }
+                            >
+                                {requiredDocs.hasTaxDocument ? '✓' : '✕'} Giấy tờ thuế
                             </div>
                         </div>
                     </div>
