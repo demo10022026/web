@@ -1,23 +1,38 @@
-import axiosInstance from '../axiosInstance.ts'
-import type { ApiResponse } from '@/types/auth.types.ts'
+import axiosInstance from '../axiosInstance'
+import type { ApiResponse } from '@/types/auth.types'
+
+export type SellerVerificationStatus =
+    | 'pending'
+    | 'approved'
+    | 'rejected'
+    | 'suspended'
+
+export type SellerDocumentType =
+    | 'citizen_id'
+    | 'citizen_id_back'
+    | 'business_license'
+    | 'tax_document'
+
+export interface AdminSellerDocument {
+    documentId: number
+    documentType: SellerDocumentType
+    documentUrl: string
+    verificationStatus: 'pending' | 'approved' | 'rejected'
+    uploadedAt: string
+}
 
 export interface AdminSellerItem {
     sellerId: number
     fullName: string
     email: string
     phoneNumber: string
-    identityNumber?: string
-    taxCode?: string
-    verificationStatus: 'pending' | 'approved' | 'rejected' | 'suspended'
-    rejectionReason?: string
-    documents: {
-        documentId: number
-        documentType: 'citizen_id' | 'business_license' | 'tax_document'
-        documentUrl: string
-        verificationStatus: string
-        uploadedAt: string
-    }[]
+    identityNumber?: string | null
+    taxCode?: string | null
+    verificationStatus: SellerVerificationStatus
+    rejectionReason?: string | null
+    verifiedAt?: string | null
     createdAt: string
+    documents: AdminSellerDocument[]
 }
 
 export interface PageResponse<T> {
@@ -38,6 +53,7 @@ export const adminSellerApi = {
             '/admin/sellers',
             { params: { status, page, size } }
         )
+
         return res.data.data!
     },
 
@@ -45,6 +61,7 @@ export const adminSellerApi = {
         const res = await axiosInstance.get<ApiResponse<AdminSellerItem>>(
             `/admin/sellers/${id}`
         )
+
         return res.data.data!
     },
 
@@ -57,6 +74,7 @@ export const adminSellerApi = {
             `/admin/sellers/${id}/review`,
             { approved, rejectionReason }
         )
+
         return res.data.data!
     },
 }

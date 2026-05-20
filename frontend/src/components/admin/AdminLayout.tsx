@@ -19,7 +19,6 @@ const navItems = [
         to: '/admin/sellers',
         label: 'Người bán',
         icon: Store,
-        disabled: true,
     },
     {
         to: '/admin/users',

@@ -12,5 +12,8 @@ import java.util.Optional;
 public interface SellerRepository extends JpaRepository<SellerProfile, Integer> {
     Optional<SellerProfile> findByUser(User user);
     boolean existsByUser(User user);
-    Page<SellerProfile> findByVerificationStatus(SellerProfile.Status status, Pageable pageable);
+    Page<SellerProfile> findByVerificationStatus(
+            SellerProfile.Status status,
+            Pageable pageable
+    );
 }
