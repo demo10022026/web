@@ -42,8 +42,8 @@ export interface CreateProductVariantPayload {
 export interface CreateProductPayload {
     productName: string
     description?: string
-    parentCategoryId: number
-    categoryId: number
+    parentCategoryName: string
+    categoryName: string
     brandName?: string | null
     productStatus: 'draft' | 'active'
     thumbnailIndex: number
@@ -124,8 +124,8 @@ export interface UpdateSellerProductVariantPayload {
 export interface UpdateSellerProductPayload {
     productName: string
     description?: string
-    parentCategoryId: number
-    categoryId: number
+    parentCategoryName: string
+    categoryName: string
     brandName?: string | null
     productStatus: Exclude<SellerProductStatus, 'banned'>
     variants: UpdateSellerProductVariantPayload[]
@@ -153,15 +153,15 @@ export const sellerProductApi = {
     ): Promise<SellerProductResponse> => {
         const formData = new FormData()
 
-        formData.append('productName', payload.productName)
-        formData.append('parentCategoryId', String(payload.parentCategoryId))
-        formData.append('categoryId', String(payload.categoryId))
+        formData.append('productName', payload.productName.trim())
+        formData.append('parentCategoryName', payload.parentCategoryName.trim())
+        formData.append('categoryName', payload.categoryName.trim())
         formData.append('productStatus', payload.productStatus)
         formData.append('thumbnailIndex', String(payload.thumbnailIndex))
         formData.append('variantsJson', JSON.stringify(payload.variants))
 
-        if (payload.description) {
-            formData.append('description', payload.description)
+        if (payload.description?.trim()) {
+            formData.append('description', payload.description.trim())
         }
 
         if (payload.brandName?.trim()) {
@@ -220,9 +220,7 @@ export const sellerProductApi = {
     ): Promise<SellerProductResponse> => {
         const res = await axiosInstance.patch<ApiResponse<SellerProductResponse>>(
             `/seller/products/${productId}/status`,
-            {
-                productStatus,
-            }
+            { productStatus }
         )
 
         return res.data.data!
@@ -235,9 +233,7 @@ export const sellerProductApi = {
     ): Promise<SellerProductResponse> => {
         const res = await axiosInstance.patch<ApiResponse<SellerProductResponse>>(
             `/seller/products/${productId}/variants/${variantId}/stock`,
-            {
-                stockQuantity,
-            }
+            { stockQuantity }
         )
 
         return res.data.data!

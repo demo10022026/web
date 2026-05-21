@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
     CalendarDays,
+    Heart,
     Loader2,
     Package,
     Search,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react'
 import { shopApi } from '@/api/shopApi'
 import { productApi } from '@/api/productApi'
+import { shopFollowApi } from '@/api/shopFollowApi'
 import ProductCard from '@/components/ui/ProductCard'
 import ContactSellerButton from '@/components/chat/ContactSellerButton'
 
@@ -54,6 +56,32 @@ export default function ShopPage() {
             }),
         enabled: !!shop?.shopName,
         staleTime: 60 * 1000,
+    })
+
+    const queryClient = useQueryClient()
+
+    const { data: followStatus } = useQuery({
+        queryKey: ['shopFollowStatus', shop?.shopId],
+        queryFn: () => shopFollowApi.getFollowStatus(shop!.shopId),
+        enabled: !!shop?.shopId,
+        retry: false,
+    })
+
+    const followMutation = useMutation({
+        mutationFn: () =>
+            followStatus?.following
+                ? shopFollowApi.unfollowShop(shop!.shopId)
+                : shopFollowApi.followShop(shop!.shopId),
+        onSuccess: (data) => {
+            queryClient.setQueryData(
+                ['shopFollowStatus', shop?.shopId],
+                data,
+            )
+
+            queryClient.invalidateQueries({
+                queryKey: ['publicShop', shopSlugOrId],
+            })
+        },
     })
 
     if (isLoadingShop) {
@@ -154,6 +182,35 @@ export default function ShopPage() {
                         </div>
 
                         <div className="flex shrink-0 flex-wrap gap-2 pb-1 md:pb-0">
+                            <button
+                                type="button"
+                                onClick={() => followMutation.mutate()}
+                                disabled={followMutation.isPending}
+                                className={[
+                                    'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all',
+                                    followStatus?.following
+                                        ? 'border border-orange-300 bg-orange-50 text-orange-600 hover:bg-orange-100'
+                                        : 'border border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600',
+                                ].join(' ')}
+                            >
+                                {followMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Heart
+                                        className={[
+                                            'h-4 w-4 transition-colors',
+                                            followStatus?.following
+                                                ? 'fill-orange-500 text-orange-500'
+                                                : 'text-gray-400',
+                                        ].join(' ')}
+                                    />
+                                )}
+
+                                {followStatus?.following
+                                    ? 'Đang theo dõi'
+                                    : 'Theo dõi'}
+                            </button>
+
                             <ContactSellerButton
                                 shopId={shop.shopId}
                                 shopSlug={shop.shopSlug}
@@ -209,7 +266,9 @@ export default function ShopPage() {
 
                             {products && products.totalPages > 1 && (
                                 <div className="mt-6 flex justify-center gap-2">
-                                    {Array.from({ length: products.totalPages }).map((_, i) => (
+                                    {Array.from({
+                                        length: products.totalPages,
+                                    }).map((_, i) => (
                                         <button
                                             key={i}
                                             type="button"

@@ -5,9 +5,10 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:ecommerce_db}?sslMode=${DB_SSL_MODE:DISABLED}&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:}
+    url: jdbc:mysql://localhost:3306/ecommerce_db?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
+    username: root
+    password: "##HUYhallo08092005"
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
@@ -31,15 +32,15 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: demo10022026@gmail.com
+    password: "wdbl outn vmnj deho"
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
 
 app:
   jwt:
-    secret: ${JWT_SECRET}
+    secret: "b106eae7b91ad61d18ee2fc0fe45c74c5886f4727728cfeff4dfbb4e0df577e0"
     expiration-ms: 900000
     refresh-expiration-ms: 604800000
 
@@ -47,17 +48,17 @@ app:
     allowed-origins:
       - http://localhost:5173
       - http://localhost:3000
-      - ${FRONTEND_URL:http://localhost:5173}
+      - https://*.trycloudflare.com
 
   cloudinary:
-    cloud-name: ${CLOUDINARY_CLOUD_NAME}
-    api-key: ${CLOUDINARY_API_KEY}
-    api-secret: ${CLOUDINARY_API_SECRET}
+    cloud-name: dnohbihzz
+    api-key: "785526547428381"
+    api-secret: IH57kn7-R3nJZ-l4SOvcSWbyKdk
 
   upload:
-    local-dir: uploads
-    use-local: false
-    base-url: ${BACKEND_BASE_URL:http://localhost:8080}
+    local-dir: uploads            # thư mục lưu file, tạo tự động
+    use-local: false               # true = local trước, false = Cloudinary trước
+    base-url: http://localhost:8080
 
 springdoc:
   api-docs:
@@ -69,4 +70,4 @@ springdoc:
 logging:
   level:
     com.ecommerce: DEBUG
-    org.springframework.security: INFO
+    org.springframework.security: INFO  # giảm noise

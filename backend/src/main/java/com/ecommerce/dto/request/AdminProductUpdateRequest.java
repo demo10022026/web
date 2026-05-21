@@ -16,7 +16,11 @@ public class AdminProductUpdateRequest {
 
     private String thumbnailUrl;
 
-    private Integer categoryId;
+    @Size(max = 100, message = "Danh mục tổng tối đa 100 ký tự")
+    private String parentCategoryName;
+
+    @Size(max = 100, message = "Danh mục sản phẩm tối đa 100 ký tự")
+    private String categoryName;
 
     @Size(max = 100, message = "Thương hiệu tối đa 100 ký tự")
     private String brandName;

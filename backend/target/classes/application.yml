@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
   servlet:
     context-path: /api
 
@@ -48,6 +48,7 @@ app:
     allowed-origins:
       - http://localhost:5173
       - http://localhost:3000
+      - https://*.trycloudflare.com
 
   cloudinary:
     cloud-name: dnohbihzz

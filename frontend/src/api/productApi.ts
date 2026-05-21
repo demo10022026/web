@@ -15,7 +15,7 @@ export const homeApi = {
     return res.data.data!
   },
 
-  getFlashSale: async (limit = 20): Promise<FlashSaleProduct[]> => {
+  getFlashSale: async (limit = 12): Promise<FlashSaleProduct[]> => {
     const res = await axiosInstance.get<ApiResponse<FlashSaleProduct[]>>(
         `/home/flash-sale?limit=${limit}`
     )
@@ -23,7 +23,7 @@ export const homeApi = {
     return res.data.data!
   },
 
-  getNewProducts: async (limit = 20): Promise<ProductSummary[]> => {
+  getNewProducts: async (limit = 12): Promise<ProductSummary[]> => {
     const res = await axiosInstance.get<ApiResponse<ProductSummary[]>>(
         `/home/new-products?limit=${limit}`
     )
@@ -31,7 +31,7 @@ export const homeApi = {
     return res.data.data!
   },
 
-  getBestSellers: async (limit = 20): Promise<ProductSummary[]> => {
+  getBestSellers: async (limit = 12): Promise<ProductSummary[]> => {
     const res = await axiosInstance.get<ApiResponse<ProductSummary[]>>(
         `/home/best-sellers?limit=${limit}`
     )

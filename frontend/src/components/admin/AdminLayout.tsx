@@ -20,7 +20,7 @@ interface AdminNavItem {
 const navItems: AdminNavItem[] = [
     {
         to: '/admin/dashboard',
-        label: 'Dashboard',
+        label: 'Trang tổng quan',
         icon: LayoutDashboard,
     },
     {
@@ -45,7 +45,7 @@ const navItems: AdminNavItem[] = [
     },
     {
         to: '/admin/vouchers',
-        label: 'Voucher',
+        label: 'Mã giảm giá',
         icon: TicketPercent,
     },
 ]

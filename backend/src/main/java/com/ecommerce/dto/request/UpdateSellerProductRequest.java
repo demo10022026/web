@@ -20,13 +20,16 @@ public class UpdateSellerProductRequest {
 
     private String description;
 
-    @NotNull(message = "Danh mục tổng không được để trống")
-    private Integer parentCategoryId;
+    @NotBlank(message = "Danh mục tổng không được để trống")
+    @Size(max = 100, message = "Danh mục tổng tối đa 100 ký tự")
+    private String parentCategoryName;
 
-    @NotNull(message = "Danh mục sản phẩm không được để trống")
-    private Integer categoryId;
+    @NotBlank(message = "Danh mục sản phẩm không được để trống")
+    @Size(max = 100, message = "Danh mục sản phẩm tối đa 100 ký tự")
+    private String categoryName;
 
-    private Integer brandId;
+    @Size(max = 100, message = "Thương hiệu tối đa 100 ký tự")
+    private String brandName;
 
     @NotNull(message = "Trạng thái sản phẩm không được để trống")
     private Product.Status productStatus;

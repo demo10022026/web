@@ -7,11 +7,10 @@ import {
     CreditCard,
     Clock,
     CheckCircle,
-    TrendingUp,
     ChevronRight,
     Eye,
     Loader2,
-    Package,
+    Package, TicketPercent,
 } from 'lucide-react'
 
 import StatCard from '@/components/admin/StatCard'
@@ -348,9 +347,21 @@ export default function AdminDashboardPage() {
                         color: 'text-blue-600 bg-blue-50',
                     },
                     {
-                        to: '/admin/reports',
-                        label: 'Báo cáo',
-                        icon: TrendingUp,
+                        to: '/admin/products',
+                        label: 'Sản phẩm',
+                        icon: Package,
+                        color: 'text-emerald-600 bg-emerald-50',
+                    },
+                    {
+                        to: '/admin/orders',
+                        label: 'Đơn hàng',
+                        icon: ShoppingBag,
+                        color: 'text-emerald-600 bg-emerald-50',
+                    },
+                    {
+                        to: '/admin/vouchers',
+                        label: 'Mã giảm giá',
+                        icon: TicketPercent,
                         color: 'text-emerald-600 bg-emerald-50',
                     },
                 ].map(item => (

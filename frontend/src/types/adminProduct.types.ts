@@ -81,12 +81,13 @@ export interface AdminProductQuery {
 }
 
 export interface AdminProductUpdateRequest {
-    productName?: string
+    productName: string
     description?: string
-    thumbnailUrl?: string
-    categoryId?: number
+    thumbnailUrl?: string | null
+    parentCategoryName: string
+    categoryName: string
     brandName?: string | null
-    productStatus?: ProductStatus
+    productStatus: ProductStatus
 }
 
 export interface AdminProductStatusRequest {

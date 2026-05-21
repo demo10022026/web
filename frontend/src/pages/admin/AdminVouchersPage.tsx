@@ -221,7 +221,7 @@ export default function AdminVouchersPage() {
         mutationFn: (payload: AdminVoucherPayload) =>
             adminVoucherApi.createVoucher(payload),
         onSuccess: () => {
-            toast.success('Tạo voucher thành công')
+            toast.success('Tạo mã giảm giá thành công')
             setForm(initialForm)
             setShowCreateForm(false)
             queryClient.invalidateQueries({ queryKey: ['adminVouchers'] })
@@ -326,7 +326,7 @@ export default function AdminVouchersPage() {
 
             {stats && (
                 <div className="grid gap-4 md:grid-cols-4">
-                    <StatCard label="Tổng voucher" value={stats.totalVouchers} />
+                    <StatCard label="Tổng mã giảm giá" value={stats.totalVouchers} />
                     <StatCard label="Đang hoạt động" value={stats.activeVouchers} />
                     <StatCard label="Theo shop" value={stats.shopVouchers} />
                     <StatCard label="Lượt lưu" value={stats.totalSavedVouchers} />
@@ -339,7 +339,7 @@ export default function AdminVouchersPage() {
                     className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
                 >
                     <h2 className="mb-4 font-semibold text-gray-900">
-                        Tạo voucher mới
+                        Tạo mã giảm giá mới
                     </h2>
 
                     <div className="grid gap-4 md:grid-cols-2">
@@ -613,7 +613,7 @@ export default function AdminVouchersPage() {
                             {createMutation.isPending && (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             )}
-                            Lưu voucher
+                            Lưu mã giảm giá
                         </button>
                     </div>
                 </form>
@@ -628,7 +628,7 @@ export default function AdminVouchersPage() {
                                 value={keywordInput}
                                 onChange={(e) => setKeywordInput(e.target.value)}
                                 className="flex-1 text-sm outline-none"
-                                placeholder="Tìm mã voucher, tên voucher, tên shop..."
+                                placeholder="Tìm mã giảm giá, tên mã giảm giá, tên shop..."
                             />
                         </div>
                         <button
@@ -675,7 +675,7 @@ export default function AdminVouchersPage() {
                 {vouchersQuery.isLoading ? (
                     <div className="flex min-h-[260px] items-center justify-center text-gray-500">
                         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Đang tải voucher...
+                        Đang tải mã giảm giá...
                     </div>
                 ) : vouchersQuery.isError ? (
                     <div className="p-6 text-red-600">
@@ -684,14 +684,14 @@ export default function AdminVouchersPage() {
                 ) : vouchers.length === 0 ? (
                     <div className="p-12 text-center text-gray-500">
                         <TicketPercent className="mx-auto h-12 w-12 text-gray-300" />
-                        <p className="mt-3 font-medium">Không có voucher phù hợp.</p>
+                        <p className="mt-3 font-medium">Không có mã giảm giá phù hợp.</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-100 text-sm">
                             <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
                                 <tr>
-                                    <th className="px-4 py-3">Voucher</th>
+                                    <th className="px-4 py-3">Mã giảm giá</th>
                                     <th className="px-4 py-3">Phạm vi</th>
                                     <th className="px-4 py-3">Lượt dùng</th>
                                     <th className="px-4 py-3">Thời hạn</th>

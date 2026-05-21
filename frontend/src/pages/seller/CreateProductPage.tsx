@@ -76,6 +76,10 @@ function toNumber(value: string, fallback = 0) {
     return Number.isFinite(n) ? n : fallback
 }
 
+function normalizeText(value: string) {
+    return value.trim().toLowerCase()
+}
+
 function Field({
                    label,
                    children,
@@ -99,20 +103,16 @@ export default function CreateProductPage() {
 
     const [productName, setProductName] = useState('')
     const [description, setDescription] = useState('')
-
-    const [parentCategoryId, setParentCategoryId] = useState('')
-    const [categoryId, setCategoryId] = useState('')
+    const [parentCategoryName, setParentCategoryName] = useState('')
+    const [categoryName, setCategoryName] = useState('')
     const [brandName, setBrandName] = useState('')
-
     const [productStatus, setProductStatus] = useState<'active' | 'draft'>(
         'active'
     )
 
     const [images, setImages] = useState<ImageItem[]>([])
     const imagesRef = useRef<ImageItem[]>([])
-
     const [thumbnailIndex, setThumbnailIndex] = useState(0)
-
     const [variants, setVariants] = useState<VariantForm[]>([
         createEmptyVariant(),
     ])
@@ -164,14 +164,80 @@ export default function CreateProductPage() {
         )
     }, [activeCategories])
 
+    const selectedParentCategory = useMemo(() => {
+        const name = normalizeText(parentCategoryName)
+
+        if (!name) return null
+
+        return (
+            parentCategories.find(
+                (category) => normalizeText(category.categoryName) === name
+            ) ?? null
+        )
+    }, [parentCategories, parentCategoryName])
+
     const childCategories = useMemo(() => {
-        if (!parentCategoryId) return []
+        if (!selectedParentCategory) return []
 
         return activeCategories.filter(
             (category) =>
-                category.parentCategoryId === Number(parentCategoryId)
+                category.parentCategoryId === selectedParentCategory.categoryId
         )
-    }, [activeCategories, parentCategoryId])
+    }, [activeCategories, selectedParentCategory])
+
+    const selectedChildCategory = useMemo(() => {
+        const name = normalizeText(categoryName)
+
+        if (!name || !selectedParentCategory) return null
+
+        return (
+            childCategories.find(
+                (category) => normalizeText(category.categoryName) === name
+            ) ?? null
+        )
+    }, [childCategories, categoryName, selectedParentCategory])
+
+    const sameNameParentAsChild = useMemo(() => {
+        const name = normalizeText(parentCategoryName)
+
+        if (!name || selectedParentCategory) return null
+
+        return (
+            activeCategories.find(
+                (category) =>
+                    normalizeText(category.categoryName) === name &&
+                    category.parentCategoryId != null
+            ) ?? null
+        )
+    }, [activeCategories, parentCategoryName, selectedParentCategory])
+
+    const sameNameChildInOtherPlace = useMemo(() => {
+        const name = normalizeText(categoryName)
+
+        if (!name || selectedChildCategory) return null
+
+        if (!selectedParentCategory) {
+            return (
+                activeCategories.find(
+                    (category) =>
+                        normalizeText(category.categoryName) === name
+                ) ?? null
+            )
+        }
+
+        return (
+            activeCategories.find(
+                (category) =>
+                    normalizeText(category.categoryName) === name &&
+                    category.parentCategoryId !== selectedParentCategory.categoryId
+            ) ?? null
+        )
+    }, [
+        activeCategories,
+        categoryName,
+        selectedChildCategory,
+        selectedParentCategory,
+    ])
 
     const handleSelectImages = (files: FileList | null) => {
         if (!files) return
@@ -212,9 +278,7 @@ export default function CreateProductPage() {
 
             const next = prev.filter((_, i) => i !== index)
 
-            if (thumbnailIndex >= next.length) {
-                setThumbnailIndex(0)
-            } else if (thumbnailIndex === index) {
+            if (thumbnailIndex >= next.length || thumbnailIndex === index) {
                 setThumbnailIndex(0)
             }
 
@@ -280,35 +344,38 @@ export default function CreateProductPage() {
             return false
         }
 
-        if (!parentCategoryId) {
-            toast.error('Chọn danh mục tổng')
+        if (!parentCategoryName.trim()) {
+            toast.error('Nhập danh mục tổng')
             return false
         }
 
-        if (!categoryId) {
-            toast.error('Chọn danh mục sản phẩm')
+        if (parentCategoryName.trim().length > 100) {
+            toast.error('Danh mục tổng tối đa 100 ký tự')
             return false
         }
 
-        const selectedParent = activeCategories.find(
-            (category) =>
-                category.categoryId === Number(parentCategoryId)
-        )
-
-        if (!selectedParent || selectedParent.parentCategoryId) {
-            toast.error('Danh mục tổng không hợp lệ')
+        if (!categoryName.trim()) {
+            toast.error('Nhập danh mục sản phẩm')
             return false
         }
 
-        const selectedChild = activeCategories.find(
-            (category) => category.categoryId === Number(categoryId)
-        )
+        if (categoryName.trim().length > 100) {
+            toast.error('Danh mục sản phẩm tối đa 100 ký tự')
+            return false
+        }
 
-        if (
-            !selectedChild ||
-            selectedChild.parentCategoryId !== Number(parentCategoryId)
-        ) {
-            toast.error('Danh mục sản phẩm không khớp với danh mục tổng')
+        if (normalizeText(parentCategoryName) === normalizeText(categoryName)) {
+            toast.error('Danh mục sản phẩm không được trùng với danh mục tổng')
+            return false
+        }
+
+        if (sameNameParentAsChild) {
+            toast.error('Tên danh mục tổng đã tồn tại ở danh mục con')
+            return false
+        }
+
+        if (sameNameChildInOtherPlace) {
+            toast.error('Tên danh mục sản phẩm đã tồn tại ở danh mục khác')
             return false
         }
 
@@ -358,8 +425,8 @@ export default function CreateProductPage() {
         createMutation.mutate({
             productName: productName.trim(),
             description: description.trim() || undefined,
-            parentCategoryId: Number(parentCategoryId),
-            categoryId: Number(categoryId),
+            parentCategoryName: parentCategoryName.trim(),
+            categoryName: categoryName.trim(),
             brandName: brandName.trim() || null,
             productStatus,
             thumbnailIndex,
@@ -457,27 +524,34 @@ export default function CreateProductPage() {
                                         <span className="text-red-500">*</span>
                                     </label>
 
-                                    <select
-                                        value={parentCategoryId}
+                                    <input
+                                        value={parentCategoryName}
                                         onChange={(e) => {
-                                            setParentCategoryId(e.target.value)
-                                            setCategoryId('')
+                                            setParentCategoryName(e.target.value)
+                                            setCategoryName('')
                                         }}
+                                        list="parent-category-options"
+                                        maxLength={100}
+                                        placeholder="Nhập hoặc chọn danh mục tổng"
                                         className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500"
-                                    >
-                                        <option value="">
-                                            Chọn danh mục tổng
-                                        </option>
+                                    />
 
+                                    <datalist id="parent-category-options">
                                         {parentCategories.map((category) => (
                                             <option
                                                 key={category.categoryId}
-                                                value={category.categoryId}
-                                            >
-                                                {category.categoryName}
-                                            </option>
+                                                value={category.categoryName}
+                                            />
                                         ))}
-                                    </select>
+                                    </datalist>
+
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        {parentCategoryName.trim()
+                                            ? selectedParentCategory
+                                                ? 'Đã chọn danh mục tổng có sẵn.'
+                                                : 'Danh mục tổng mới sẽ được tạo khi lưu.'
+                                            : 'Nhập hoặc chọn danh mục tổng.'}
+                                    </p>
                                 </div>
 
                                 <div>
@@ -486,29 +560,33 @@ export default function CreateProductPage() {
                                         <span className="text-red-500">*</span>
                                     </label>
 
-                                    <select
-                                        value={categoryId}
+                                    <input
+                                        value={categoryName}
                                         onChange={(e) =>
-                                            setCategoryId(e.target.value)
+                                            setCategoryName(e.target.value)
                                         }
-                                        disabled={!parentCategoryId}
-                                        className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
-                                    >
-                                        <option value="">
-                                            {parentCategoryId
-                                                ? 'Chọn danh mục sản phẩm'
-                                                : 'Chọn danh mục tổng trước'}
-                                        </option>
+                                        list="child-category-options"
+                                        maxLength={100}
+                                        placeholder="Nhập hoặc chọn danh mục sản phẩm"
+                                        className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500"
+                                    />
 
+                                    <datalist id="child-category-options">
                                         {childCategories.map((category) => (
                                             <option
                                                 key={category.categoryId}
-                                                value={category.categoryId}
-                                            >
-                                                {category.categoryName}
-                                            </option>
+                                                value={category.categoryName}
+                                            />
                                         ))}
-                                    </select>
+                                    </datalist>
+
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        {categoryName.trim()
+                                            ? selectedChildCategory
+                                                ? 'Đã chọn danh mục sản phẩm có sẵn.'
+                                                : 'Danh mục sản phẩm mới sẽ được tạo khi lưu.'
+                                            : 'Nhập hoặc chọn danh mục sản phẩm.'}
+                                    </p>
                                 </div>
                             </div>
 
@@ -870,7 +948,8 @@ export default function CreateProductPage() {
 
                             <div
                                 className={
-                                    parentCategoryId && categoryId
+                                    parentCategoryName.trim() &&
+                                    categoryName.trim()
                                         ? 'text-green-600'
                                         : 'text-gray-400'
                                 }

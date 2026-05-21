@@ -92,6 +92,14 @@ public class SellerProductManagementServiceImpl
 
         Product.Status nextStatus = request.getProductStatus();
 
+        if (nextStatus == null) {
+            throw new AppException(
+                    "Trạng thái sản phẩm không được để trống",
+                    HttpStatus.BAD_REQUEST,
+                    "PRODUCT_STATUS_REQUIRED"
+            );
+        }
+
         if (nextStatus == Product.Status.banned) {
             throw new AppException(
                     "Seller không thể tự đặt sản phẩm sang trạng thái bị khóa",
@@ -100,16 +108,12 @@ public class SellerProductManagementServiceImpl
             );
         }
 
-        Category category = validateAndGetChildCategory(
-                request.getParentCategoryId(),
-                request.getCategoryId()
+        Category category = resolveOrCreateCategory(
+                request.getParentCategoryName(),
+                request.getCategoryName()
         );
 
-        Brand brand = null;
-        if (request.getBrandId() != null) {
-            brand = brandRepo.findById(request.getBrandId())
-                    .orElseThrow(() -> AppException.notFound("Thương hiệu"));
-        }
+        Brand brand = resolveBrandByName(request.getBrandName());
 
         validateVariantPayloads(request.getVariants());
 
@@ -118,6 +122,7 @@ public class SellerProductManagementServiceImpl
         product.setCategory(category);
         product.setBrand(brand);
         product.setProductStatus(nextStatus);
+        product.setUpdatedAt(LocalDateTime.now());
 
         syncVariants(product, request.getVariants());
 
@@ -138,7 +143,7 @@ public class SellerProductManagementServiceImpl
 
         Product.Status nextStatus = request.getProductStatus();
 
-        if (nextStatus == Product.Status.banned) {
+        if (nextStatus == null || nextStatus == Product.Status.banned) {
             throw new AppException(
                     "Seller không thể tự đặt sản phẩm sang trạng thái bị khóa",
                     HttpStatus.BAD_REQUEST,
@@ -147,6 +152,7 @@ public class SellerProductManagementServiceImpl
         }
 
         product.setProductStatus(nextStatus);
+        product.setUpdatedAt(LocalDateTime.now());
 
         return toResponse(productRepo.save(product));
     }
@@ -164,14 +170,26 @@ public class SellerProductManagementServiceImpl
         Product product = productRepo.findByProductIdAndShop(productId, shop)
                 .orElseThrow(() -> AppException.notFound("Sản phẩm"));
 
+        Integer stockQuantity = request.getStockQuantity();
+
+        if (stockQuantity == null || stockQuantity < 0) {
+            throw new AppException(
+                    "Tồn kho phải là số nguyên không âm",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_STOCK"
+            );
+        }
+
         ProductVariant variant = variantRepo
                 .findByVariantIdAndProduct(variantId, product)
                 .orElseThrow(() -> AppException.notFound("Biến thể"));
 
-        variant.setStockQuantity(request.getStockQuantity());
+        variant.setStockQuantity(stockQuantity);
         variantRepo.save(variant);
 
-        return toResponse(product);
+        product.setUpdatedAt(LocalDateTime.now());
+
+        return toResponse(productRepo.save(product));
     }
 
     @Override
@@ -229,6 +247,8 @@ public class SellerProductManagementServiceImpl
             imageRepo.save(first);
         }
 
+        product.setUpdatedAt(LocalDateTime.now());
+
         return toResponse(productRepo.save(product));
     }
 
@@ -280,6 +300,8 @@ public class SellerProductManagementServiceImpl
             imageRepo.saveAll(images);
         }
 
+        product.setUpdatedAt(LocalDateTime.now());
+
         return toResponse(productRepo.save(product));
     }
 
@@ -305,10 +327,145 @@ public class SellerProductManagementServiceImpl
         }
 
         product.setThumbnailUrl(target.getImageUrl());
+        product.setUpdatedAt(LocalDateTime.now());
 
         imageRepo.saveAll(images);
 
         return toResponse(productRepo.save(product));
+    }
+
+    private Category resolveOrCreateCategory(
+            String rawParentCategoryName,
+            String rawCategoryName
+    ) {
+        String parentCategoryName = normalizeText(rawParentCategoryName);
+        String categoryName = normalizeText(rawCategoryName);
+
+        if (parentCategoryName == null) {
+            throw new AppException(
+                    "Danh mục tổng không được để trống",
+                    HttpStatus.BAD_REQUEST,
+                    "PARENT_CATEGORY_REQUIRED"
+            );
+        }
+
+        if (categoryName == null) {
+            throw new AppException(
+                    "Danh mục sản phẩm không được để trống",
+                    HttpStatus.BAD_REQUEST,
+                    "CATEGORY_REQUIRED"
+            );
+        }
+
+        if (parentCategoryName.length() > 100) {
+            throw new AppException(
+                    "Danh mục tổng tối đa 100 ký tự",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_PARENT_CATEGORY_NAME"
+            );
+        }
+
+        if (categoryName.length() > 100) {
+            throw new AppException(
+                    "Danh mục sản phẩm tối đa 100 ký tự",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_CATEGORY_NAME"
+            );
+        }
+
+        if (parentCategoryName.equalsIgnoreCase(categoryName)) {
+            throw new AppException(
+                    "Danh mục sản phẩm không được trùng với danh mục tổng",
+                    HttpStatus.BAD_REQUEST,
+                    "CATEGORY_NAME_DUPLICATED"
+            );
+        }
+
+        Category parentCategory = resolveOrCreateParentCategory(parentCategoryName);
+
+        return resolveOrCreateChildCategory(categoryName, parentCategory);
+    }
+
+    private Category resolveOrCreateParentCategory(String parentCategoryName) {
+        return categoryRepo
+                .findByCategoryNameIgnoreCaseAndParentCategoryIsNull(parentCategoryName)
+                .orElseGet(() -> {
+                    categoryRepo.findByCategoryNameIgnoreCase(parentCategoryName)
+                            .ifPresent(existing -> {
+                                throw new AppException(
+                                        "Tên danh mục tổng đã tồn tại ở danh mục con",
+                                        HttpStatus.BAD_REQUEST,
+                                        "PARENT_CATEGORY_NAME_EXISTS_AS_CHILD"
+                                );
+                            });
+
+                    Category category = new Category();
+                    category.setCategoryName(parentCategoryName);
+                    category.setParentCategory(null);
+                    category.setCreatedAt(LocalDateTime.now());
+
+                    return categoryRepo.save(category);
+                });
+    }
+
+    private Category resolveOrCreateChildCategory(
+            String categoryName,
+            Category parentCategory
+    ) {
+        return categoryRepo
+                .findByCategoryNameIgnoreCaseAndParentCategory_CategoryId(
+                        categoryName,
+                        parentCategory.getCategoryId()
+                )
+                .orElseGet(() -> {
+                    categoryRepo.findByCategoryNameIgnoreCase(categoryName)
+                            .ifPresent(existing -> {
+                                throw new AppException(
+                                        "Tên danh mục sản phẩm đã tồn tại ở danh mục khác",
+                                        HttpStatus.BAD_REQUEST,
+                                        "CATEGORY_NAME_EXISTS_IN_OTHER_PARENT"
+                                );
+                            });
+
+                    Category category = new Category();
+                    category.setCategoryName(categoryName);
+                    category.setParentCategory(parentCategory);
+                    category.setCreatedAt(LocalDateTime.now());
+
+                    return categoryRepo.save(category);
+                });
+    }
+
+    private Brand resolveBrandByName(String rawBrandName) {
+        String brandName = normalizeText(rawBrandName);
+
+        if (brandName == null) {
+            return null;
+        }
+
+        if (brandName.length() > 100) {
+            throw new AppException(
+                    "Tên thương hiệu tối đa 100 ký tự",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_BRAND_NAME"
+            );
+        }
+
+        return brandRepo.findByBrandNameIgnoreCase(brandName)
+                .map(existingBrand -> {
+                    if (existingBrand.getBrandStatus() != Brand.Status.active) {
+                        existingBrand.setBrandStatus(Brand.Status.active);
+                        return brandRepo.save(existingBrand);
+                    }
+
+                    return existingBrand;
+                })
+                .orElseGet(() -> brandRepo.save(
+                        Brand.builder()
+                                .brandName(brandName)
+                                .brandStatus(Brand.Status.active)
+                                .build()
+                ));
     }
 
     private void syncVariants(
@@ -391,9 +548,9 @@ public class SellerProductManagementServiceImpl
 
             if (
                     defaultInt(v.getWeight()) < 0 ||
-                    defaultInt(v.getLength()) < 0 ||
-                    defaultInt(v.getWidth()) < 0 ||
-                    defaultInt(v.getHeight()) < 0
+                            defaultInt(v.getLength()) < 0 ||
+                            defaultInt(v.getWidth()) < 0 ||
+                            defaultInt(v.getHeight()) < 0
             ) {
                 throw new AppException(
                         "Khối lượng/kích thước không được âm",
@@ -481,61 +638,6 @@ public class SellerProductManagementServiceImpl
                 );
             }
         }
-    }
-
-    private Category validateAndGetChildCategory(
-            Integer parentCategoryId,
-            Integer childCategoryId
-    ) {
-        if (parentCategoryId == null || childCategoryId == null) {
-            throw new AppException(
-                    "Vui lòng chọn đầy đủ danh mục tổng và danh mục sản phẩm",
-                    HttpStatus.BAD_REQUEST,
-                    "CATEGORY_REQUIRED"
-            );
-        }
-
-        if (parentCategoryId.equals(childCategoryId)) {
-            throw new AppException(
-                    "Danh mục sản phẩm không hợp lệ",
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_CHILD_CATEGORY"
-            );
-        }
-
-        Category parent = categoryRepo.findById(parentCategoryId)
-                .orElseThrow(() -> AppException.notFound("Danh mục tổng"));
-
-        if (parent.getParentCategory() != null) {
-            throw new AppException(
-                    "Danh mục tổng không hợp lệ",
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_PARENT_CATEGORY"
-            );
-        }
-
-        Category child = categoryRepo.findById(childCategoryId)
-                .orElseThrow(() -> AppException.notFound("Danh mục sản phẩm"));
-
-        if (child.getParentCategory() == null) {
-            throw new AppException(
-                    "Vui lòng chọn danh mục sản phẩm",
-                    HttpStatus.BAD_REQUEST,
-                    "CHILD_CATEGORY_REQUIRED"
-            );
-        }
-
-        Integer actualParentId = child.getParentCategory().getCategoryId();
-
-        if (!parentCategoryId.equals(actualParentId)) {
-            throw new AppException(
-                    "Danh mục sản phẩm không thuộc danh mục tổng đã chọn",
-                    HttpStatus.BAD_REQUEST,
-                    "CATEGORY_MISMATCH"
-            );
-        }
-
-        return child;
     }
 
     private Shop findActiveShop(String email) {

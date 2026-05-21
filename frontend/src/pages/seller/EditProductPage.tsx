@@ -18,6 +18,9 @@ import {
     type UpdateSellerProductVariantPayload,
 } from '@/api/sellerProductApi'
 
+const MAX_IMAGES = 8
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+
 type EditableStatus = Exclude<SellerProductStatus, 'banned'>
 
 interface VariantForm {
@@ -55,6 +58,22 @@ function toNumber(value: string, fallback = 0) {
     const n = Number(value)
 
     return Number.isFinite(n) ? n : fallback
+}
+
+function normalizeText(value: string) {
+    return value.trim().toLowerCase()
+}
+
+function validateImage(file: File) {
+    if (!file.type.startsWith('image/')) {
+        return 'Chỉ được chọn file ảnh'
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+        return 'Ảnh tối đa 5MB'
+    }
+
+    return null
 }
 
 function toVariantForm(product: SellerProductResponse): VariantForm[] {
@@ -105,14 +124,14 @@ export default function EditProductPage() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
 
-    const [initializedProductId, setInitializedProductId] = useState<number | null>(
-        null
-    )
+    const [initializedProductId, setInitializedProductId] = useState<
+        number | null
+    >(null)
 
     const [productName, setProductName] = useState('')
     const [description, setDescription] = useState('')
-    const [parentCategoryId, setParentCategoryId] = useState('')
-    const [categoryId, setCategoryId] = useState('')
+    const [parentCategoryName, setParentCategoryName] = useState('')
+    const [categoryName, setCategoryName] = useState('')
     const [brandName, setBrandName] = useState('')
     const [productStatus, setProductStatus] = useState<EditableStatus>('active')
     const [variants, setVariants] = useState<VariantForm[]>([])
@@ -148,14 +167,80 @@ export default function EditProductPage() {
         )
     }, [activeCategories])
 
+    const selectedParentCategory = useMemo(() => {
+        const name = normalizeText(parentCategoryName)
+
+        if (!name) return null
+
+        return (
+            parentCategories.find(
+                (category) => normalizeText(category.categoryName) === name
+            ) ?? null
+        )
+    }, [parentCategories, parentCategoryName])
+
     const childCategories = useMemo(() => {
-        if (!parentCategoryId) return []
+        if (!selectedParentCategory) return []
 
         return activeCategories.filter(
             (category) =>
-                category.parentCategoryId === Number(parentCategoryId)
+                category.parentCategoryId === selectedParentCategory.categoryId
         )
-    }, [activeCategories, parentCategoryId])
+    }, [activeCategories, selectedParentCategory])
+
+    const selectedChildCategory = useMemo(() => {
+        const name = normalizeText(categoryName)
+
+        if (!name || !selectedParentCategory) return null
+
+        return (
+            childCategories.find(
+                (category) => normalizeText(category.categoryName) === name
+            ) ?? null
+        )
+    }, [childCategories, categoryName, selectedParentCategory])
+
+    const sameNameParentAsChild = useMemo(() => {
+        const name = normalizeText(parentCategoryName)
+
+        if (!name || selectedParentCategory) return null
+
+        return (
+            activeCategories.find(
+                (category) =>
+                    normalizeText(category.categoryName) === name &&
+                    category.parentCategoryId != null
+            ) ?? null
+        )
+    }, [activeCategories, parentCategoryName, selectedParentCategory])
+
+    const sameNameChildInOtherPlace = useMemo(() => {
+        const name = normalizeText(categoryName)
+
+        if (!name || selectedChildCategory) return null
+
+        if (!selectedParentCategory) {
+            return (
+                activeCategories.find(
+                    (category) =>
+                        normalizeText(category.categoryName) === name
+                ) ?? null
+            )
+        }
+
+        return (
+            activeCategories.find(
+                (category) =>
+                    normalizeText(category.categoryName) === name &&
+                    category.parentCategoryId !== selectedParentCategory.categoryId
+            ) ?? null
+        )
+    }, [
+        activeCategories,
+        categoryName,
+        selectedChildCategory,
+        selectedParentCategory,
+    ])
 
     useEffect(() => {
         if (!product || initializedProductId === product.productId) return
@@ -164,15 +249,18 @@ export default function EditProductPage() {
             (category) => category.categoryId === product.categoryId
         )
 
-        const resolvedParentId =
-            product.parentCategoryId ??
-            selectedCategory?.parentCategoryId ??
-            null
+        const selectedParent = activeCategories.find(
+            (category) =>
+                category.categoryId ===
+                (product.parentCategoryId ?? selectedCategory?.parentCategoryId)
+        )
 
         setProductName(product.productName ?? '')
         setDescription(product.description ?? '')
-        setParentCategoryId(resolvedParentId ? String(resolvedParentId) : '')
-        setCategoryId(product.categoryId ? String(product.categoryId) : '')
+        setParentCategoryName(
+            product.parentCategoryName ?? selectedParent?.categoryName ?? ''
+        )
+        setCategoryName(product.categoryName ?? selectedCategory?.categoryName ?? '')
         setBrandName(product.brandName ?? '')
 
         if (product.productStatus !== 'banned') {
@@ -209,10 +297,10 @@ export default function EditProductPage() {
 
             navigate('/seller/products')
         },
+
         onError: (err: any) => {
             toast.error(
-                err?.response?.data?.message ||
-                'Không thể cập nhật sản phẩm'
+                err?.response?.data?.message || 'Không thể cập nhật sản phẩm'
             )
         },
     })
@@ -370,34 +458,38 @@ export default function EditProductPage() {
             return false
         }
 
-        if (!parentCategoryId) {
-            toast.error('Chọn danh mục tổng')
+        if (!parentCategoryName.trim()) {
+            toast.error('Nhập danh mục tổng')
             return false
         }
 
-        if (!categoryId) {
-            toast.error('Chọn danh mục sản phẩm')
+        if (parentCategoryName.trim().length > 100) {
+            toast.error('Danh mục tổng tối đa 100 ký tự')
             return false
         }
 
-        const selectedParent = activeCategories.find(
-            (category) => category.categoryId === Number(parentCategoryId)
-        )
-
-        if (!selectedParent || selectedParent.parentCategoryId) {
-            toast.error('Danh mục tổng không hợp lệ')
+        if (!categoryName.trim()) {
+            toast.error('Nhập danh mục sản phẩm')
             return false
         }
 
-        const selectedChild = activeCategories.find(
-            (category) => category.categoryId === Number(categoryId)
-        )
+        if (categoryName.trim().length > 100) {
+            toast.error('Danh mục sản phẩm tối đa 100 ký tự')
+            return false
+        }
 
-        if (
-            !selectedChild ||
-            selectedChild.parentCategoryId !== Number(parentCategoryId)
-        ) {
-            toast.error('Danh mục sản phẩm không thuộc danh mục tổng đã chọn')
+        if (normalizeText(parentCategoryName) === normalizeText(categoryName)) {
+            toast.error('Danh mục sản phẩm không được trùng với danh mục tổng')
+            return false
+        }
+
+        if (sameNameParentAsChild) {
+            toast.error('Tên danh mục tổng đã tồn tại ở danh mục con')
+            return false
+        }
+
+        if (sameNameChildInOtherPlace) {
+            toast.error('Tên danh mục sản phẩm đã tồn tại ở danh mục khác')
             return false
         }
 
@@ -450,8 +542,8 @@ export default function EditProductPage() {
             payload: {
                 productName: productName.trim(),
                 description: description.trim() || undefined,
-                parentCategoryId: Number(parentCategoryId),
-                categoryId: Number(categoryId),
+                parentCategoryName: parentCategoryName.trim(),
+                categoryName: categoryName.trim(),
                 brandName: brandName.trim() || null,
                 productStatus,
                 variants: buildVariantPayload(),
@@ -465,6 +557,20 @@ export default function EditProductPage() {
         const selected = Array.from(files)
 
         if (selected.length === 0) return
+
+        if ((product.images?.length ?? 0) + selected.length > MAX_IMAGES) {
+            toast.error(`Tối đa ${MAX_IMAGES} ảnh sản phẩm`)
+            return
+        }
+
+        for (const file of selected) {
+            const error = validateImage(file)
+
+            if (error) {
+                toast.error(error)
+                return
+            }
+        }
 
         addImagesMutation.mutate({
             productId: product.productId,
@@ -496,6 +602,11 @@ export default function EditProductPage() {
 
     const isLoading = isLoadingProduct || isLoadingOptions
     const isBanned = product?.productStatus === 'banned'
+    const isSaving =
+        updateMutation.isPending ||
+        addImagesMutation.isPending ||
+        deleteImageMutation.isPending ||
+        setThumbnailMutation.isPending
 
     if (isLoading) {
         return (
@@ -563,7 +674,8 @@ export default function EditProductPage() {
                         <div className="space-y-4">
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                                    Tên sản phẩm <span className="text-red-500">*</span>
+                                    Tên sản phẩm{' '}
+                                    <span className="text-red-500">*</span>
                                 </label>
 
                                 <input
@@ -598,61 +710,75 @@ export default function EditProductPage() {
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
                                     <label className="mb-1 block text-sm font-medium text-gray-700">
-                                        Danh mục tổng <span className="text-red-500">*</span>
+                                        Danh mục tổng{' '}
+                                        <span className="text-red-500">*</span>
                                     </label>
 
-                                    <select
-                                        value={parentCategoryId}
+                                    <input
+                                        value={parentCategoryName}
                                         disabled={isBanned}
                                         onChange={(e) => {
-                                            setParentCategoryId(e.target.value)
-                                            setCategoryId('')
+                                            setParentCategoryName(e.target.value)
+                                            setCategoryName('')
                                         }}
+                                        list="edit-parent-category-options"
+                                        maxLength={100}
+                                        placeholder="Nhập hoặc chọn danh mục tổng"
                                         className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
-                                    >
-                                        <option value="">
-                                            Chọn danh mục tổng
-                                        </option>
+                                    />
 
+                                    <datalist id="edit-parent-category-options">
                                         {parentCategories.map((category) => (
                                             <option
                                                 key={category.categoryId}
-                                                value={category.categoryId}
-                                            >
-                                                {category.categoryName}
-                                            </option>
+                                                value={category.categoryName}
+                                            />
                                         ))}
-                                    </select>
+                                    </datalist>
+
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        {parentCategoryName.trim()
+                                            ? selectedParentCategory
+                                                ? 'Đã chọn danh mục tổng có sẵn.'
+                                                : 'Danh mục tổng mới sẽ được tạo khi lưu.'
+                                            : 'Nhập hoặc chọn danh mục tổng.'}
+                                    </p>
                                 </div>
 
                                 <div>
                                     <label className="mb-1 block text-sm font-medium text-gray-700">
-                                        Danh mục sản phẩm <span className="text-red-500">*</span>
+                                        Danh mục sản phẩm{' '}
+                                        <span className="text-red-500">*</span>
                                     </label>
 
-                                    <select
-                                        value={categoryId}
+                                    <input
+                                        value={categoryName}
+                                        disabled={isBanned}
                                         onChange={(e) =>
-                                            setCategoryId(e.target.value)
+                                            setCategoryName(e.target.value)
                                         }
-                                        disabled={!parentCategoryId || isBanned}
+                                        list="edit-child-category-options"
+                                        maxLength={100}
+                                        placeholder="Nhập hoặc chọn danh mục sản phẩm"
                                         className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100 disabled:text-gray-400"
-                                    >
-                                        <option value="">
-                                            {parentCategoryId
-                                                ? 'Chọn danh mục sản phẩm'
-                                                : 'Chọn danh mục tổng trước'}
-                                        </option>
+                                    />
 
+                                    <datalist id="edit-child-category-options">
                                         {childCategories.map((category) => (
                                             <option
                                                 key={category.categoryId}
-                                                value={category.categoryId}
-                                            >
-                                                {category.categoryName}
-                                            </option>
+                                                value={category.categoryName}
+                                            />
                                         ))}
-                                    </select>
+                                    </datalist>
+
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        {categoryName.trim()
+                                            ? selectedChildCategory
+                                                ? 'Đã chọn danh mục sản phẩm có sẵn.'
+                                                : 'Danh mục sản phẩm mới sẽ được tạo khi lưu.'
+                                            : 'Nhập hoặc chọn danh mục sản phẩm.'}
+                                    </p>
                                 </div>
                             </div>
 
@@ -664,18 +790,14 @@ export default function EditProductPage() {
 
                                     <input
                                         value={brandName}
-                                        disabled={isBanned}
                                         onChange={(e) =>
                                             setBrandName(e.target.value)
                                         }
                                         maxLength={100}
+                                        disabled={isBanned}
                                         placeholder="VD: Nike, Apple, Samsung..."
                                         className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
                                     />
-
-                                    <p className="mt-1 text-xs text-gray-400">
-                                        Có thể để trống nếu sản phẩm không có thương hiệu.
-                                    </p>
                                 </div>
 
                                 <div>
@@ -693,9 +815,15 @@ export default function EditProductPage() {
                                         }
                                         className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
                                     >
-                                        <option value="active">Đang bán</option>
-                                        <option value="draft">Nháp</option>
-                                        <option value="inactive">Ẩn</option>
+                                        <option value="active">
+                                            Đang bán
+                                        </option>
+                                        <option value="draft">
+                                            Nháp
+                                        </option>
+                                        <option value="inactive">
+                                            Đã ẩn
+                                        </option>
                                     </select>
                                 </div>
                             </div>
@@ -704,18 +832,12 @@ export default function EditProductPage() {
 
                     <section className="rounded-2xl border bg-white p-5 shadow-sm">
                         <div className="mb-4 flex items-center justify-between">
-                            <div>
-                                <h2 className="font-semibold text-gray-900">
-                                    Ảnh sản phẩm
-                                </h2>
-
-                                <p className="mt-1 text-xs text-gray-400">
-                                    Tối đa 8 ảnh. Có thể thêm, xóa và chọn ảnh đại diện.
-                                </p>
-                            </div>
+                            <h2 className="font-semibold text-gray-900">
+                                Ảnh sản phẩm
+                            </h2>
 
                             <span className="text-xs text-gray-400">
-                                {product.images.length}/8
+                                {product.images?.length ?? 0}/{MAX_IMAGES}
                             </span>
                         </div>
 
@@ -731,77 +853,58 @@ export default function EditProductPage() {
                                         className="h-36 w-full object-cover"
                                     />
 
-                                    {image.isThumbnail && (
-                                        <span className="absolute left-2 top-2 rounded-full bg-orange-500 px-2 py-1 text-[11px] font-semibold text-white">
-                                            Ảnh đại diện
-                                        </span>
-                                    )}
-
-                                    <div className="space-y-2 p-2">
-                                        {!image.isThumbnail && (
-                                            <button
-                                                type="button"
-                                                disabled={isBanned || setThumbnailMutation.isPending}
-                                                onClick={() => handleSetThumbnail(image.imageId)}
-                                                className="w-full rounded-lg border px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                                            >
-                                                Đặt làm ảnh đại diện
-                                            </button>
-                                        )}
-
+                                    {!isBanned && (
                                         <button
                                             type="button"
-                                            disabled={
-                                                isBanned ||
-                                                deleteImageMutation.isPending ||
-                                                product.images.length <= 1
+                                            onClick={() =>
+                                                handleDeleteImage(image.imageId)
                                             }
-                                            onClick={() => handleDeleteImage(image.imageId)}
-                                            className="flex w-full items-center justify-center gap-1 rounded-lg border border-red-100 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                            className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black"
                                         >
-                                            <Trash2 size={13} />
-                                            Xóa ảnh
+                                            <Trash2 size={14} />
                                         </button>
-                                    </div>
+                                    )}
+
+                                    <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs text-gray-700">
+                                        <input
+                                            type="radio"
+                                            checked={image.isThumbnail}
+                                            disabled={isBanned}
+                                            onChange={() =>
+                                                handleSetThumbnail(image.imageId)
+                                            }
+                                        />
+                                        Ảnh đại diện
+                                    </label>
                                 </div>
                             ))}
 
-                            {product.images.length < 8 && (
-                                <label className="flex h-[210px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed bg-gray-50 text-gray-500 hover:border-orange-400 hover:text-orange-500">
-                                    {addImagesMutation.isPending ? (
-                                        <Loader2 className="h-7 w-7 animate-spin" />
-                                    ) : (
+                            {!isBanned &&
+                                (product.images?.length ?? 0) < MAX_IMAGES && (
+                                    <label className="flex h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed bg-gray-50 text-gray-500 hover:border-orange-400 hover:text-orange-500">
                                         <ImagePlus size={28} />
-                                    )}
 
-                                    <span className="mt-2 text-sm font-medium">
-                                        Thêm ảnh
-                                    </span>
+                                        <span className="mt-2 text-sm font-medium">
+                                            Thêm ảnh
+                                        </span>
 
-                                    <span className="mt-1 text-xs">
-                                        JPG, PNG, WEBP
-                                    </span>
+                                        <span className="mt-1 text-xs">
+                                            JPG, PNG, WEBP
+                                        </span>
 
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        disabled={isBanned || addImagesMutation.isPending}
-                                        className="hidden"
-                                        onChange={(e) => {
-                                            handleAddImages(e.target.files)
-                                            e.currentTarget.value = ''
-                                        }}
-                                    />
-                                </label>
-                            )}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                handleAddImages(e.target.files)
+                                                e.currentTarget.value = ''
+                                            }}
+                                        />
+                                    </label>
+                                )}
                         </div>
-
-                        {product.images.length <= 1 && (
-                            <p className="mt-3 text-xs text-gray-400">
-                                Sản phẩm cần ít nhất 1 ảnh nên không thể xóa ảnh cuối cùng.
-                            </p>
-                        )}
                     </section>
 
                     <section className="rounded-2xl border bg-white p-5 shadow-sm">
@@ -810,15 +913,16 @@ export default function EditProductPage() {
                                 Biến thể, giá và tồn kho
                             </h2>
 
-                            <button
-                                type="button"
-                                disabled={isBanned}
-                                onClick={addVariant}
-                                className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-sm font-medium text-orange-600 hover:bg-orange-50 disabled:opacity-50"
-                            >
-                                <Plus size={16} />
-                                Thêm biến thể
-                            </button>
+                            {!isBanned && (
+                                <button
+                                    type="button"
+                                    onClick={addVariant}
+                                    className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-sm font-medium text-orange-600 hover:bg-orange-50"
+                                >
+                                    <Plus size={16} />
+                                    Thêm biến thể
+                                </button>
+                            )}
                         </div>
 
                         <div className="space-y-4">
@@ -829,21 +933,17 @@ export default function EditProductPage() {
                                 >
                                     <div className="mb-4 flex items-center justify-between">
                                         <p className="font-medium text-gray-800">
-                                            {variant.variantId
-                                                ? `Biến thể #${variant.variantId}`
-                                                : `Biến thể mới #${index + 1}`}
+                                            Biến thể #{index + 1}
                                         </p>
 
-                                        {variant.isNew && (
+                                        {!isBanned && (
                                             <button
                                                 type="button"
-                                                disabled={isBanned}
                                                 onClick={() =>
                                                     removeNewVariant(index)
                                                 }
-                                                className="inline-flex items-center gap-1 text-sm text-red-500 hover:underline disabled:opacity-50"
+                                                className="text-sm text-red-500 hover:underline"
                                             >
-                                                <Trash2 size={14} />
                                                 Xóa
                                             </button>
                                         )}
@@ -1057,12 +1157,23 @@ export default function EditProductPage() {
 
                             <div
                                 className={
-                                    parentCategoryId && categoryId
+                                    parentCategoryName.trim() &&
+                                    categoryName.trim()
                                         ? 'text-green-600'
                                         : 'text-gray-400'
                                 }
                             >
                                 ✓ Danh mục tổng và danh mục sản phẩm
+                            </div>
+
+                            <div
+                                className={
+                                    (product.images?.length ?? 0) > 0
+                                        ? 'text-green-600'
+                                        : 'text-gray-400'
+                                }
+                            >
+                                ✓ Ảnh sản phẩm
                             </div>
 
                             <div
@@ -1074,24 +1185,14 @@ export default function EditProductPage() {
                             >
                                 ✓ Giá bán
                             </div>
-
-                            <div
-                                className={
-                                    product.images.length > 0
-                                        ? 'text-green-600'
-                                        : 'text-gray-400'
-                                }
-                            >
-                                ✓ Ảnh sản phẩm
-                            </div>
                         </div>
                     </div>
 
                     <button
                         type="button"
-                        disabled={updateMutation.isPending || isBanned}
+                        disabled={isBanned || updateMutation.isPending}
                         onClick={handleSubmit}
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-60"
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {updateMutation.isPending ? (
                             <>
@@ -1105,15 +1206,14 @@ export default function EditProductPage() {
                             </>
                         )}
                     </button>
-
-                    <Link
-                        to="/seller/products"
-                        className="flex w-full items-center justify-center rounded-2xl border px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                    >
-                        Hủy
-                    </Link>
                 </aside>
             </div>
+
+            {isSaving && (
+                <div className="fixed bottom-4 right-4 rounded-xl bg-gray-900 px-4 py-3 text-sm text-white shadow-lg">
+                    Đang cập nhật...
+                </div>
+            )}
         </div>
     )
 }

@@ -178,14 +178,14 @@ export default function AdminVoucherDetailPage() {
         mutationFn: (payload: AdminVoucherPayload) =>
             adminVoucherApi.updateVoucher(id, payload),
         onSuccess: (data) => {
-            toast.success('Cập nhật voucher thành công')
+            toast.success('Cập nhật mã giảm giá thành công')
             queryClient.setQueryData(['adminVoucherDetail', id], data)
             queryClient.invalidateQueries({ queryKey: ['adminVouchers'] })
             queryClient.invalidateQueries({ queryKey: ['adminVoucherStats'] })
         },
         onError: (err: any) => {
             toast.error(
-                err?.response?.data?.message || 'Không thể cập nhật voucher'
+                err?.response?.data?.message || 'Không thể cập nhật mã giảm giá'
             )
         },
     })
@@ -194,7 +194,7 @@ export default function AdminVoucherDetailPage() {
         mutationFn: (voucherStatus: AdminVoucherRawStatus) =>
             adminVoucherApi.updateVoucherStatus(id, voucherStatus),
         onSuccess: (data) => {
-            toast.success('Cập nhật trạng thái voucher thành công')
+            toast.success('Cập nhật trạng thái mã giảm giá thành công')
             queryClient.setQueryData(['adminVoucherDetail', id], data)
             queryClient.invalidateQueries({ queryKey: ['adminVouchers'] })
             queryClient.invalidateQueries({ queryKey: ['adminVoucherStats'] })
@@ -202,7 +202,7 @@ export default function AdminVoucherDetailPage() {
         onError: (err: any) => {
             toast.error(
                 err?.response?.data?.message ||
-                    'Không thể cập nhật trạng thái voucher'
+                    'Không thể cập nhật trạng thái mã giảm giá'
             )
         },
     })
@@ -213,7 +213,7 @@ export default function AdminVoucherDetailPage() {
         if (!form) return
 
         if (form.scope === 'shop' && !form.shopId) {
-            toast.error('Voucher shop cần nhập shop ID')
+            toast.error('Mã giảm giá shop cần nhập shop ID')
             return
         }
 
@@ -340,7 +340,7 @@ export default function AdminVoucherDetailPage() {
                     <div className="grid gap-4 md:grid-cols-2">
                         <label className="block">
                             <span className="text-sm font-medium text-gray-700">
-                                Mã voucher
+                                Mã giảm giá
                             </span>
                             <input
                                 value={form.code}
@@ -357,7 +357,7 @@ export default function AdminVoucherDetailPage() {
 
                         <label className="block">
                             <span className="text-sm font-medium text-gray-700">
-                                Tên voucher
+                                Tên mã giảm giá
                             </span>
                             <input
                                 value={form.voucherName}

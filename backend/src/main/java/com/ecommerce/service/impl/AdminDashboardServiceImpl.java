@@ -75,17 +75,11 @@ public class AdminDashboardServiceImpl {
                         PageRequest.of(0, 1)
                 ).getTotalElements();
 
-        // ── Tổng doanh thu ─────────────────────────────────
+        // ── Tổng doanh thu: chỉ tính đơn đã hoàn thành ──────
 
-        BigDecimal totalRevenue = orderRepo.findAll()
-                .stream()
-                .filter(order ->
-                        order.getOrderStatus() != Order.OrderStatus.cancelled
-                                && order.getOrderStatus() != Order.OrderStatus.returned
-                )
-                .map(Order::getTotalAmount)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalRevenue = orderRepo.sumTotalAmountByOrderStatus(
+                Order.OrderStatus.delivered
+        );
 
         // ── Người dùng mới ────────────────────────────────
 

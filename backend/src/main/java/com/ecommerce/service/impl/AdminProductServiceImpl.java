@@ -15,10 +15,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -68,16 +70,22 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
 
         if (request.getDescription() != null) {
-            product.setDescription(request.getDescription());
+            product.setDescription(normalizeText(request.getDescription()));
         }
 
-        if (request.getThumbnailUrl() != null) {
-            product.setThumbnailUrl(request.getThumbnailUrl());
-        }
+        /*
+         * Admin UI hiện đã để Thumbnail URL chỉ xem.
+         * Không update thumbnailUrl ở đây để tránh sửa ảnh đại diện bằng URL thủ công.
+         */
 
-        if (request.getCategoryId() != null) {
-            Category category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> AppException.notFound("Danh mục"));
+        if (
+                hasText(request.getParentCategoryName()) ||
+                        hasText(request.getCategoryName())
+        ) {
+            Category category = resolveOrCreateCategory(
+                    request.getParentCategoryName(),
+                    request.getCategoryName()
+            );
 
             product.setCategory(category);
         }
@@ -87,6 +95,8 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (request.getProductStatus() != null) {
             product.setProductStatus(request.getProductStatus());
         }
+
+        product.setUpdatedAt(LocalDateTime.now());
 
         Product saved = productRepository.save(product);
 
@@ -103,6 +113,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     ) {
         Product product = findProduct(productId);
         product.setProductStatus(request.getProductStatus());
+        product.setUpdatedAt(LocalDateTime.now());
 
         Product saved = productRepository.save(product);
 
@@ -121,6 +132,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     public AdminProductResponse softDelete(Integer productId) {
         Product product = findProduct(productId);
         product.setProductStatus(Product.Status.inactive);
+        product.setUpdatedAt(LocalDateTime.now());
 
         Product saved = productRepository.save(product);
 
@@ -135,7 +147,6 @@ public class AdminProductServiceImpl implements AdminProductService {
         Product product = findProduct(productId);
 
         flashSaleRepository.deleteByProductId(productId);
-
         productRepository.delete(product);
 
         log.warn("Admin xóa vĩnh viễn sản phẩm id={}", productId);
@@ -146,14 +157,132 @@ public class AdminProductServiceImpl implements AdminProductService {
                 .orElseThrow(() -> AppException.notFound("Sản phẩm"));
     }
 
+    private Category resolveOrCreateCategory(
+            String rawParentCategoryName,
+            String rawCategoryName
+    ) {
+        String parentCategoryName = normalizeText(rawParentCategoryName);
+        String categoryName = normalizeText(rawCategoryName);
+
+        if (parentCategoryName == null) {
+            throw new AppException(
+                    "Danh mục tổng không được để trống",
+                    HttpStatus.BAD_REQUEST,
+                    "PARENT_CATEGORY_REQUIRED"
+            );
+        }
+
+        if (categoryName == null) {
+            throw new AppException(
+                    "Danh mục sản phẩm không được để trống",
+                    HttpStatus.BAD_REQUEST,
+                    "CATEGORY_REQUIRED"
+            );
+        }
+
+        if (parentCategoryName.length() > 100) {
+            throw new AppException(
+                    "Danh mục tổng tối đa 100 ký tự",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_PARENT_CATEGORY_NAME"
+            );
+        }
+
+        if (categoryName.length() > 100) {
+            throw new AppException(
+                    "Danh mục sản phẩm tối đa 100 ký tự",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_CATEGORY_NAME"
+            );
+        }
+
+        if (parentCategoryName.equalsIgnoreCase(categoryName)) {
+            throw new AppException(
+                    "Danh mục sản phẩm không được trùng với danh mục tổng",
+                    HttpStatus.BAD_REQUEST,
+                    "CATEGORY_NAME_DUPLICATED"
+            );
+        }
+
+        Category parentCategory = resolveOrCreateParentCategory(parentCategoryName);
+
+        return resolveOrCreateChildCategory(categoryName, parentCategory);
+    }
+
+    private Category resolveOrCreateParentCategory(String parentCategoryName) {
+        return categoryRepository
+                .findByCategoryNameIgnoreCaseAndParentCategoryIsNull(parentCategoryName)
+                .orElseGet(() -> {
+                    categoryRepository.findByCategoryNameIgnoreCase(parentCategoryName)
+                            .ifPresent(existing -> {
+                                throw new AppException(
+                                        "Tên danh mục tổng đã tồn tại ở danh mục con",
+                                        HttpStatus.BAD_REQUEST,
+                                        "PARENT_CATEGORY_NAME_EXISTS_AS_CHILD"
+                                );
+                            });
+
+                    Category category = new Category();
+                    category.setCategoryName(parentCategoryName);
+                    category.setParentCategory(null);
+                    category.setCreatedAt(LocalDateTime.now());
+
+                    return categoryRepository.save(category);
+                });
+    }
+
+    private Category resolveOrCreateChildCategory(
+            String categoryName,
+            Category parentCategory
+    ) {
+        return categoryRepository
+                .findByCategoryNameIgnoreCaseAndParentCategory_CategoryId(
+                        categoryName,
+                        parentCategory.getCategoryId()
+                )
+                .orElseGet(() -> {
+                    categoryRepository.findByCategoryNameIgnoreCase(categoryName)
+                            .ifPresent(existing -> {
+                                throw new AppException(
+                                        "Tên danh mục sản phẩm đã tồn tại ở danh mục khác",
+                                        HttpStatus.BAD_REQUEST,
+                                        "CATEGORY_NAME_EXISTS_IN_OTHER_PARENT"
+                                );
+                            });
+
+                    Category category = new Category();
+                    category.setCategoryName(categoryName);
+                    category.setParentCategory(parentCategory);
+                    category.setCreatedAt(LocalDateTime.now());
+
+                    return categoryRepository.save(category);
+                });
+    }
+
     private Brand resolveBrandByName(String brandName) {
-        if (brandName == null || brandName.isBlank()) {
+        String cleanName = normalizeText(brandName);
+
+        if (cleanName == null) {
             return null;
         }
 
-        String cleanName = brandName.trim();
+        if (cleanName.length() > 100) {
+            throw new AppException(
+                    "Tên thương hiệu tối đa 100 ký tự",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_BRAND_NAME"
+            );
+        }
 
         return brandRepository.findByBrandNameIgnoreCase(cleanName)
+                .map(existingBrand -> {
+                    if (existingBrand.getBrandStatus() != Brand.Status.active) {
+                        existingBrand.setBrandStatus(Brand.Status.active);
+                        return brandRepository.save(existingBrand);
+                    }
+
+                    return existingBrand;
+                })
                 .orElseGet(() -> brandRepository.save(
                         Brand.builder()
                                 .brandName(cleanName)
@@ -163,16 +292,27 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     private String normalizeKeyword(String keyword) {
-        if (keyword == null || keyword.isBlank()) {
+        return normalizeText(keyword);
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
             return null;
         }
 
-        return keyword.trim();
+        String trimmed = value.trim();
+
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     private AdminProductResponse toSummaryResponse(Product p) {
         Shop shop = p.getShop();
         Category category = p.getCategory();
+        Category parentCategory = category == null ? null : category.getParentCategory();
         Brand brand = p.getBrand();
 
         List<ProductVariant> variants = safeVariants(p);

@@ -2,7 +2,6 @@ package com.ecommerce.dto.request;
 
 import com.ecommerce.entity.Product;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,11 +18,13 @@ public class CreateSellerProductRequest {
 
     private String description;
 
-    @NotNull(message = "Danh mục cha không được để trống")
-    private Integer parentCategoryId;
+    @NotBlank(message = "Danh mục tổng không được để trống")
+    @Size(max = 100, message = "Danh mục tổng tối đa 100 ký tự")
+    private String parentCategoryName;
 
-    @NotNull(message = "Danh mục con không được để trống")
-    private Integer categoryId;
+    @NotBlank(message = "Danh mục sản phẩm không được để trống")
+    @Size(max = 100, message = "Danh mục sản phẩm tối đa 100 ký tự")
+    private String categoryName;
 
     @Size(max = 100, message = "Thương hiệu tối đa 100 ký tự")
     private String brandName;

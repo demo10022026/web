@@ -68,14 +68,20 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        String email = request.getEmail() == null
+                ? ""
+                : request.getEmail().trim().toLowerCase();
+
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(AppException::invalidCredentials);
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword()))
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw AppException.invalidCredentials();
+        }
 
-        if (!user.isActive())
+        if (!user.isActive()) {
             throw AppException.accountSuspended();
+        }
 
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
