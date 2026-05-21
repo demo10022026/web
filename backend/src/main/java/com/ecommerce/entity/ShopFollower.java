@@ -9,7 +9,10 @@ import java.time.LocalDateTime;
 @Table(
         name = "shop_followers",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_shop_followers_shop_user", columnNames = {"shop_id", "user_id"})
+                @UniqueConstraint(
+                        name = "uk_shop_followers_shop_user",
+                        columnNames = {"shop_id", "user_id"}
+                )
         }
 )
 @Getter
@@ -21,6 +24,7 @@ public class ShopFollower {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "follow_id")
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -31,6 +35,6 @@ public class ShopFollower {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @Column(name = "followed_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }

@@ -81,9 +81,9 @@ function toVariantForm(product: SellerProductResponse): VariantForm[] {
 }
 
 function Field({
-    label,
-    children,
-}: {
+                   label,
+                   children,
+               }: {
     label: string
     children: React.ReactNode
 }) {
@@ -113,7 +113,7 @@ export default function EditProductPage() {
     const [description, setDescription] = useState('')
     const [parentCategoryId, setParentCategoryId] = useState('')
     const [categoryId, setCategoryId] = useState('')
-    const [brandId, setBrandId] = useState('')
+    const [brandName, setBrandName] = useState('')
     const [productStatus, setProductStatus] = useState<EditableStatus>('active')
     const [variants, setVariants] = useState<VariantForm[]>([])
 
@@ -140,10 +140,6 @@ export default function EditProductPage() {
 
     const activeCategories = useMemo(() => {
         return options?.categories ?? []
-    }, [options])
-
-    const activeBrands = useMemo(() => {
-        return options?.brands ?? []
     }, [options])
 
     const parentCategories = useMemo(() => {
@@ -177,7 +173,7 @@ export default function EditProductPage() {
         setDescription(product.description ?? '')
         setParentCategoryId(resolvedParentId ? String(resolvedParentId) : '')
         setCategoryId(product.categoryId ? String(product.categoryId) : '')
-        setBrandId(product.brandId ? String(product.brandId) : '')
+        setBrandName(product.brandName ?? '')
 
         if (product.productStatus !== 'banned') {
             setProductStatus(product.productStatus)
@@ -191,9 +187,9 @@ export default function EditProductPage() {
 
     const updateMutation = useMutation({
         mutationFn: ({
-            productId,
-            payload,
-        }: {
+                         productId,
+                         payload,
+                     }: {
             productId: number
             payload: Parameters<typeof sellerProductApi.updateProduct>[1]
         }) => sellerProductApi.updateProduct(productId, payload),
@@ -216,16 +212,16 @@ export default function EditProductPage() {
         onError: (err: any) => {
             toast.error(
                 err?.response?.data?.message ||
-                    'Không thể cập nhật sản phẩm'
+                'Không thể cập nhật sản phẩm'
             )
         },
     })
 
     const addImagesMutation = useMutation({
         mutationFn: ({
-            productId,
-            images,
-        }: {
+                         productId,
+                         images,
+                     }: {
             productId: number
             images: File[]
         }) => sellerProductApi.addProductImages(productId, images),
@@ -252,9 +248,9 @@ export default function EditProductPage() {
 
     const deleteImageMutation = useMutation({
         mutationFn: ({
-            productId,
-            imageId,
-        }: {
+                         productId,
+                         imageId,
+                     }: {
             productId: number
             imageId: number
         }) => sellerProductApi.deleteProductImage(productId, imageId),
@@ -281,9 +277,9 @@ export default function EditProductPage() {
 
     const setThumbnailMutation = useMutation({
         mutationFn: ({
-            productId,
-            imageId,
-        }: {
+                         productId,
+                         imageId,
+                     }: {
             productId: number
             imageId: number
         }) => sellerProductApi.setProductThumbnail(productId, imageId),
@@ -317,9 +313,9 @@ export default function EditProductPage() {
             prev.map((variant, i) =>
                 i === index
                     ? {
-                          ...variant,
-                          [field]: value,
-                      }
+                        ...variant,
+                        [field]: value,
+                    }
                     : variant
             )
         )
@@ -456,7 +452,7 @@ export default function EditProductPage() {
                 description: description.trim() || undefined,
                 parentCategoryId: Number(parentCategoryId),
                 categoryId: Number(categoryId),
-                brandId: brandId ? Number(brandId) : null,
+                brandName: brandName.trim() || null,
                 productStatus,
                 variants: buildVariantPayload(),
             },
@@ -666,27 +662,20 @@ export default function EditProductPage() {
                                         Thương hiệu
                                     </label>
 
-                                    <select
-                                        value={brandId}
+                                    <input
+                                        value={brandName}
                                         disabled={isBanned}
                                         onChange={(e) =>
-                                            setBrandId(e.target.value)
+                                            setBrandName(e.target.value)
                                         }
+                                        maxLength={100}
+                                        placeholder="VD: Nike, Apple, Samsung..."
                                         className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500 disabled:bg-gray-100"
-                                    >
-                                        <option value="">
-                                            Không chọn thương hiệu
-                                        </option>
+                                    />
 
-                                        {activeBrands.map((brand) => (
-                                            <option
-                                                key={brand.brandId}
-                                                value={brand.brandId}
-                                            >
-                                                {brand.brandName}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        Có thể để trống nếu sản phẩm không có thương hiệu.
+                                    </p>
                                 </div>
 
                                 <div>

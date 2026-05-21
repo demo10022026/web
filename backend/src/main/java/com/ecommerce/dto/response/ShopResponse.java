@@ -23,6 +23,7 @@ public class ShopResponse {
     private String shopStatus;
 
     private BigDecimal rating;
+    private Long reviewCount;
     private Integer followerCount;
 
     private LocalDateTime createdAt;

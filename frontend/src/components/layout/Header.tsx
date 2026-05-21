@@ -3,7 +3,7 @@ import { Link, useNavigate }           from 'react-router-dom'
 import {
   ShoppingBag, Search, Tag, ShoppingCart,
   User, LogOut, ChevronDown, Store, Clock,
-  LayoutDashboard, Package,
+  LayoutDashboard, Package,MessageCircle,
 } from 'lucide-react'
 import { useAuthStore }   from '@/store/authStore'
 import { useSellerStore } from '@/store/sellerStore'
@@ -139,6 +139,13 @@ export default function Header() {
             )}
           </Link>
 
+          {/*Tin nhắn*/}
+          <Link to="/messages"
+                className="p-2 hover:bg-orange-400/60 rounded-lg transition-colors"
+                title="Tin nhắn">
+            <MessageCircle className="h-5 w-5" />
+          </Link>
+
           {/* ── User dropdown ── */}
           {isAuthenticated ? (
             <div className="relative" ref={dropdownRef}>
@@ -200,6 +207,11 @@ export default function Header() {
                       className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 text-sm">
                       <ShoppingBag className="h-4 w-4 text-gray-400" />
                       Đơn mua của tôi
+                    </Link>
+                    <Link to="/vouchers" onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 text-sm">
+                      <ShoppingBag className="h-4 w-4 text-gray-400" />
+                      Vouchers của tôi
                     </Link>
                   </div>
 
@@ -269,6 +281,18 @@ export default function Header() {
                                   >
                                     <Package className="h-4 w-4 text-gray-400" />
                                     Thêm sản phẩm
+                                  </Link>
+                              )}
+
+                              {shopId && (
+                                  <Link
+                                      to="/seller/vouchers"
+                                      onClick={() => setDropdownOpen(false)}
+                                      className="flex items-center gap-2.5 px-4 py-2.5
+                       hover:bg-orange-50 text-sm text-gray-600"
+                                  >
+                                    <Package className="h-4 w-4 text-gray-400" />
+                                    Quản lý vouchers
                                   </Link>
                               )}
                             </>

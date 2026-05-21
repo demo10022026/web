@@ -25,7 +25,8 @@ public class CreateSellerProductRequest {
     @NotNull(message = "Danh mục con không được để trống")
     private Integer categoryId;
 
-    private Integer brandId;
+    @Size(max = 100, message = "Thương hiệu tối đa 100 ký tự")
+    private String brandName;
 
     private Product.Status productStatus = Product.Status.active;
 

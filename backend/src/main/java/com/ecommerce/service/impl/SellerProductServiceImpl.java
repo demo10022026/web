@@ -85,11 +85,7 @@ public class SellerProductServiceImpl implements SellerProductService {
                 request.getCategoryId()
         );
 
-        Brand brand = null;
-        if (request.getBrandId() != null) {
-            brand = brandRepo.findById(request.getBrandId())
-                    .orElseThrow(() -> AppException.notFound("Thương hiệu"));
-        }
+        Brand brand = resolveBrandByName(request.getBrandName());
 
         List<CreateSellerProductRequest.VariantPayload> variantPayloads =
                 parseVariants(request.getVariantsJson());
@@ -156,6 +152,38 @@ public class SellerProductServiceImpl implements SellerProductService {
         Product saved = productRepo.save(product);
 
         return toResponse(saved);
+    }
+
+    private Brand resolveBrandByName(String rawBrandName) {
+        String brandName = normalizeText(rawBrandName);
+
+        if (brandName == null) {
+            return null;
+        }
+
+        if (brandName.length() > 100) {
+            throw new AppException(
+                    "Tên thương hiệu tối đa 100 ký tự",
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_BRAND_NAME"
+            );
+        }
+
+        return brandRepo.findByBrandNameIgnoreCase(brandName)
+                .map(existingBrand -> {
+                    if (existingBrand.getBrandStatus() != Brand.Status.active) {
+                        existingBrand.setBrandStatus(Brand.Status.active);
+                        return brandRepo.save(existingBrand);
+                    }
+
+                    return existingBrand;
+                })
+                .orElseGet(() -> brandRepo.save(
+                        Brand.builder()
+                                .brandName(brandName)
+                                .brandStatus(Brand.Status.active)
+                                .build()
+                ));
     }
 
     private Category validateAndGetChildCategory(

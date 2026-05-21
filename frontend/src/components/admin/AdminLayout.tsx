@@ -1,6 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import {
-    BarChart3,
     Home,
     LayoutDashboard,
     Package,
@@ -48,12 +47,6 @@ const navItems: AdminNavItem[] = [
         to: '/admin/vouchers',
         label: 'Voucher',
         icon: TicketPercent,
-    },
-    {
-        to: '/admin/reports',
-        label: 'Báo cáo',
-        icon: BarChart3,
-        disabled: true,
     },
 ]
 

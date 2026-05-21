@@ -4,11 +4,11 @@ import com.ecommerce.dto.request.AdminProductStatusRequest;
 import com.ecommerce.dto.request.AdminProductUpdateRequest;
 import com.ecommerce.dto.response.AdminProductDetailResponse;
 import com.ecommerce.dto.response.AdminProductResponse;
-import com.ecommerce.repository.FlashSaleRepository;
 import com.ecommerce.entity.*;
 import com.ecommerce.exception.AppException;
 import com.ecommerce.repository.BrandRepository;
 import com.ecommerce.repository.CategoryRepository;
+import com.ecommerce.repository.FlashSaleRepository;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.service.AdminProductService;
 import lombok.RequiredArgsConstructor;
@@ -57,7 +57,10 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     @Override
     @Transactional
-    public AdminProductDetailResponse updateProduct(Integer productId, AdminProductUpdateRequest request) {
+    public AdminProductDetailResponse updateProduct(
+            Integer productId,
+            AdminProductUpdateRequest request
+    ) {
         Product product = findProduct(productId);
 
         if (request.getProductName() != null && !request.getProductName().isBlank()) {
@@ -75,20 +78,18 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> AppException.notFound("Danh mục"));
+
             product.setCategory(category);
         }
 
-        if (request.getBrandId() != null) {
-            Brand brand = brandRepository.findById(request.getBrandId())
-                    .orElseThrow(() -> AppException.notFound("Thương hiệu"));
-            product.setBrand(brand);
-        }
+        product.setBrand(resolveBrandByName(request.getBrandName()));
 
         if (request.getProductStatus() != null) {
             product.setProductStatus(request.getProductStatus());
         }
 
         Product saved = productRepository.save(product);
+
         log.info("Admin cập nhật sản phẩm id={}", productId);
 
         return toDetailResponse(saved);
@@ -96,7 +97,10 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     @Override
     @Transactional
-    public AdminProductResponse updateStatus(Integer productId, AdminProductStatusRequest request) {
+    public AdminProductResponse updateStatus(
+            Integer productId,
+            AdminProductStatusRequest request
+    ) {
         Product product = findProduct(productId);
         product.setProductStatus(request.getProductStatus());
 
@@ -119,11 +123,13 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setProductStatus(Product.Status.inactive);
 
         Product saved = productRepository.save(product);
+
         log.info("Admin xóa mềm sản phẩm id={}", productId);
 
         return toSummaryResponse(saved);
     }
 
+    @Override
     @Transactional
     public void permanentDelete(Integer productId) {
         Product product = findProduct(productId);
@@ -135,16 +141,32 @@ public class AdminProductServiceImpl implements AdminProductService {
         log.warn("Admin xóa vĩnh viễn sản phẩm id={}", productId);
     }
 
-
     private Product findProduct(Integer productId) {
         return productRepository.adminFindById(productId)
                 .orElseThrow(() -> AppException.notFound("Sản phẩm"));
+    }
+
+    private Brand resolveBrandByName(String brandName) {
+        if (brandName == null || brandName.isBlank()) {
+            return null;
+        }
+
+        String cleanName = brandName.trim();
+
+        return brandRepository.findByBrandNameIgnoreCase(cleanName)
+                .orElseGet(() -> brandRepository.save(
+                        Brand.builder()
+                                .brandName(cleanName)
+                                .brandStatus(Brand.Status.active)
+                                .build()
+                ));
     }
 
     private String normalizeKeyword(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return null;
         }
+
         return keyword.trim();
     }
 
@@ -154,6 +176,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         Brand brand = p.getBrand();
 
         List<ProductVariant> variants = safeVariants(p);
+
         int totalStock = variants.stream()
                 .map(ProductVariant::getStockQuantity)
                 .filter(q -> q != null)
@@ -277,6 +300,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (safeVariants(p).isEmpty()) {
             return BigDecimal.ZERO;
         }
+
         return p.getMinPrice();
     }
 
@@ -284,6 +308,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (safeVariants(p).isEmpty()) {
             return null;
         }
+
         return p.getMinOriginalPrice();
     }
 
@@ -291,6 +316,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (safeVariants(p).isEmpty()) {
             return 0;
         }
+
         return p.getMaxDiscountPercent();
     }
 }

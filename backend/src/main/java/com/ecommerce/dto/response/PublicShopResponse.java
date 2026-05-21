@@ -19,6 +19,7 @@ public class PublicShopResponse {
     private String shopStatus;
 
     private BigDecimal rating;
+    private Long reviewCount;
     private Integer followerCount;
     private Long activeProductCount;
 

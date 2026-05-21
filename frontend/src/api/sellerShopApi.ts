@@ -11,6 +11,7 @@ export interface ShopInfo {
     bannerUrl?: string | null
     shopStatus: 'active' | 'suspended' | 'hidden'
     rating: number
+    reviewCount?: number | null
     followerCount: number
     createdAt: string
 }
@@ -61,7 +62,12 @@ export const sellerShopApi = {
 
         const res = await axiosInstance.post<ApiResponse<ShopInfo>>(
             '/seller/shop',
-            formData
+            formData,
+            {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            }
         )
 
         return res.data.data!

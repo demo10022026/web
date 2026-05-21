@@ -13,7 +13,7 @@ import {
     ShieldAlert,
     Trash2,
 } from 'lucide-react'
-import { adminProductApi } from '@/api/adminProductApi'
+import { adminProductApi } from '@/api/admin/adminProductApi.ts'
 import type {
     AdminProductUpdateRequest,
     ProductStatus,
@@ -80,7 +80,7 @@ export default function AdminProductDetailPage() {
         description: '',
         thumbnailUrl: '',
         categoryId: '',
-        brandId: '',
+        brandName: '',
         productStatus: 'draft' as ProductStatus,
     })
 
@@ -102,7 +102,7 @@ export default function AdminProductDetailPage() {
             description: product.description || '',
             thumbnailUrl: product.thumbnailUrl || '',
             categoryId: product.categoryId ? String(product.categoryId) : '',
-            brandId: product.brandId ? String(product.brandId) : '',
+            brandName: product.brandName || '',
             productStatus: product.productStatus,
         })
     }, [product])
@@ -168,7 +168,7 @@ export default function AdminProductDetailPage() {
             description: form.description,
             thumbnailUrl: form.thumbnailUrl,
             categoryId: nullableNumber(form.categoryId),
-            brandId: nullableNumber(form.brandId),
+            brandName: form.brandName.trim() || null,
             productStatus: form.productStatus,
         }
 
@@ -406,21 +406,22 @@ export default function AdminProductDetailPage() {
 
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                                    Brand ID
+                                    Thương hiệu
                                 </label>
                                 <input
-                                    value={form.brandId}
+                                    value={form.brandName}
                                     onChange={(e) =>
                                         setForm((prev) => ({
                                             ...prev,
-                                            brandId: e.target.value,
+                                            brandName: e.target.value,
                                         }))
                                     }
-                                    type="number"
+                                    maxLength={100}
+                                    placeholder="VD: Nike, Apple, Samsung..."
                                     className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                                 />
                                 <p className="mt-1 text-xs text-gray-400">
-                                    Hiện tại: {product.brandName || '-'}
+                                    Có thể để trống nếu sản phẩm không có thương hiệu.
                                 </p>
                             </div>
 

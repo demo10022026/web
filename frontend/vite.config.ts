@@ -4,18 +4,28 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
+
+  define: {
+    global: 'globalThis',
+  },
+
   server: {
-    port: 5173,
+    host: '0.0.0.0',
+    allowedHosts: ['.trycloudflare.com'],
+    hmr: {
+      clientPort: 443,
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
     },
-  },
+  }
 })

@@ -102,7 +102,7 @@ export default function CreateProductPage() {
 
     const [parentCategoryId, setParentCategoryId] = useState('')
     const [categoryId, setCategoryId] = useState('')
-    const [brandId, setBrandId] = useState('')
+    const [brandName, setBrandName] = useState('')
 
     const [productStatus, setProductStatus] = useState<'active' | 'draft'>(
         'active'
@@ -156,10 +156,6 @@ export default function CreateProductPage() {
 
     const activeCategories = useMemo(() => {
         return options?.categories ?? []
-    }, [options])
-
-    const activeBrands = useMemo(() => {
-        return options?.brands ?? []
     }, [options])
 
     const parentCategories = useMemo(() => {
@@ -364,7 +360,7 @@ export default function CreateProductPage() {
             description: description.trim() || undefined,
             parentCategoryId: Number(parentCategoryId),
             categoryId: Number(categoryId),
-            brandId: brandId ? Number(brandId) : null,
+            brandName: brandName.trim() || null,
             productStatus,
             thumbnailIndex,
             variants: buildVariantPayload(),
@@ -385,7 +381,7 @@ export default function CreateProductPage() {
         return (
             <div className="mx-auto max-w-4xl px-4 py-8">
                 <div className="rounded-2xl border border-red-100 bg-red-50 p-6 text-sm text-red-700">
-                    Không thể tải danh mục/thương hiệu.
+                    Không thể tải danh mục.
                 </div>
             </div>
         )
@@ -522,26 +518,19 @@ export default function CreateProductPage() {
                                         Thương hiệu
                                     </label>
 
-                                    <select
-                                        value={brandId}
+                                    <input
+                                        value={brandName}
                                         onChange={(e) =>
-                                            setBrandId(e.target.value)
+                                            setBrandName(e.target.value)
                                         }
+                                        maxLength={100}
+                                        placeholder="VD: Nike, Apple, Samsung..."
                                         className="w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-orange-500"
-                                    >
-                                        <option value="">
-                                            Không chọn thương hiệu
-                                        </option>
+                                    />
 
-                                        {activeBrands.map((brand) => (
-                                            <option
-                                                key={brand.brandId}
-                                                value={brand.brandId}
-                                            >
-                                                {brand.brandName}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        Có thể để trống nếu sản phẩm không có thương hiệu.
+                                    </p>
                                 </div>
 
                                 <div>

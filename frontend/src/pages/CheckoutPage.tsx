@@ -188,11 +188,9 @@ export default function CheckoutPage() {
             defaultAddress?.addressId ?? addresses[0]?.addressId ?? null
         )
     }, [addresses, selectedAddressId])
-
-    const usableVouchers = useMemo(() => {
+    useMemo(() => {
         return savedVouchers.filter((voucher) => canUseVoucher(summary, voucher))
-    }, [savedVouchers, summary])
-
+    }, [savedVouchers, summary]);
     const selectedAddress = useMemo(() => {
         return addresses.find((address) => address.addressId === selectedAddressId)
     }, [addresses, selectedAddressId])

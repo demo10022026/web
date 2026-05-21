@@ -44,7 +44,7 @@ export interface CreateProductPayload {
     description?: string
     parentCategoryId: number
     categoryId: number
-    brandId?: number | null
+    brandName?: string | null
     productStatus: 'draft' | 'active'
     thumbnailIndex: number
     variants: CreateProductVariantPayload[]
@@ -126,7 +126,7 @@ export interface UpdateSellerProductPayload {
     description?: string
     parentCategoryId: number
     categoryId: number
-    brandId?: number | null
+    brandName?: string | null
     productStatus: Exclude<SellerProductStatus, 'banned'>
     variants: UpdateSellerProductVariantPayload[]
 }
@@ -164,8 +164,8 @@ export const sellerProductApi = {
             formData.append('description', payload.description)
         }
 
-        if (payload.brandId) {
-            formData.append('brandId', String(payload.brandId))
+        if (payload.brandName?.trim()) {
+            formData.append('brandName', payload.brandName.trim())
         }
 
         payload.images.forEach((file) => {

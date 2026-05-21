@@ -85,7 +85,7 @@ export interface AdminProductUpdateRequest {
     description?: string
     thumbnailUrl?: string
     categoryId?: number
-    brandId?: number
+    brandName?: string | null
     productStatus?: ProductStatus
 }
 

@@ -18,6 +18,7 @@ import ProductDetailPage from '@/pages/ProductDetailPage'
 import { FlashSalePage } from '@/pages/FlashSalePage'
 import ProductReviewsPage from '@/pages/ProductReviewsPage'
 import NotificationsPage from '@/pages/NotificationsPage'
+import MessagesPage from '@/pages/MessagesPage'
 
 // User pages
 import ProfilePage from '@/pages/ProfilePage'
@@ -85,6 +86,7 @@ export default function App() {
                         <Route path="/flash-sale" element={<FlashSalePage />} />
                         <Route path="/products/:id/reviews" element={<ProductReviewsPage />} />
                         <Route path="/notifications" element={<NotificationsPage />} />
+                        <Route path="/messages" element={<MessagesPage />} />
                     </Route>
 
                     {/* User authenticated */}

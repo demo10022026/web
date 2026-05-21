@@ -12,7 +12,7 @@ import {
     Search,
     Trash2,
 } from 'lucide-react'
-import { adminProductApi } from '@/api/adminProductApi'
+import { adminProductApi } from '@/api/admin/adminProductApi.ts'
 import type {
     AdminProductResponse,
     ProductStatus,

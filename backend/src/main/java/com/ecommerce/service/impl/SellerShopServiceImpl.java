@@ -6,6 +6,7 @@ import com.ecommerce.entity.SellerProfile;
 import com.ecommerce.entity.Shop;
 import com.ecommerce.entity.User;
 import com.ecommerce.exception.AppException;
+import com.ecommerce.repository.ReviewRepository;
 import com.ecommerce.repository.SellerRepository;
 import com.ecommerce.repository.ShopRepository;
 import com.ecommerce.repository.UserRepository;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -29,6 +31,7 @@ public class SellerShopServiceImpl implements SellerShopService {
     private final UserRepository userRepo;
     private final SellerRepository sellerRepo;
     private final ShopRepository shopRepo;
+    private final ReviewRepository reviewRepo;
     private final ImageStorageService imageStorage;
 
     @Override
@@ -142,9 +145,7 @@ public class SellerShopServiceImpl implements SellerShopService {
     }
 
     private String slugify(String input) {
-        String text = input == null
-                ? ""
-                : input.trim().toLowerCase(Locale.ROOT);
+        String text = input == null ? "" : input.trim().toLowerCase(Locale.ROOT);
 
         text = text.replace("đ", "d");
 
@@ -159,13 +160,40 @@ public class SellerShopServiceImpl implements SellerShopService {
     }
 
     private String normalizeText(String value) {
-        if (value == null) {
-            return null;
-        }
+        if (value == null) return null;
 
         String trimmed = value.trim();
 
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private ShopResponse toResponse(Shop shop) {
+        long reviewCount = reviewRepo.countByShop(shop);
+        BigDecimal shopRating = toRating(reviewRepo.averageRatingByShop(shop));
+
+        return ShopResponse.builder()
+                .shopId(shop.getShopId())
+                .sellerId(shop.getSeller().getSellerId())
+                .shopName(shop.getShopName())
+                .shopSlug(shop.getShopSlug())
+                .description(shop.getDescription())
+                .avatarUrl(shop.getAvatarUrl())
+                .bannerUrl(shop.getBannerUrl())
+                .shopStatus(shop.getShopStatus().name())
+                .rating(shopRating)
+                .reviewCount(reviewCount)
+                .followerCount(shop.getFollowerCount())
+                .createdAt(shop.getCreatedAt())
+                .build();
+    }
+
+    private BigDecimal toRating(Double rating) {
+        if (rating == null) {
+            return BigDecimal.ZERO;
+        }
+
+        return BigDecimal.valueOf(rating)
+                .setScale(1, RoundingMode.HALF_UP);
     }
 
     private void validateImageFile(MultipartFile file) {
@@ -188,21 +216,5 @@ public class SellerShopServiceImpl implements SellerShopService {
                     "IMAGE_TOO_LARGE"
             );
         }
-    }
-
-    private ShopResponse toResponse(Shop shop) {
-        return ShopResponse.builder()
-                .shopId(shop.getShopId())
-                .sellerId(shop.getSeller().getSellerId())
-                .shopName(shop.getShopName())
-                .shopSlug(shop.getShopSlug())
-                .description(shop.getDescription())
-                .avatarUrl(shop.getAvatarUrl())
-                .bannerUrl(shop.getBannerUrl())
-                .shopStatus(shop.getShopStatus().name())
-                .rating(shop.getRating())
-                .followerCount(shop.getFollowerCount())
-                .createdAt(shop.getCreatedAt())
-                .build();
     }
 }

@@ -10,6 +10,7 @@ export interface PublicShop {
     bannerUrl?: string | null
     shopStatus: 'active' | 'suspended' | 'hidden'
     rating: number
+    reviewCount?: number | null
     followerCount: number
     activeProductCount: number
     createdAt?: string | null

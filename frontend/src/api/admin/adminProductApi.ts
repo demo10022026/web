@@ -1,5 +1,5 @@
-import axiosInstance from './axiosInstance'
-import type { ApiResponse } from '@/types/auth.types'
+import axiosInstance from '../axiosInstance.ts'
+import type { ApiResponse } from '@/types/auth.types.ts'
 import type {
     AdminPageResponse,
     AdminProductDetailResponse,
@@ -7,7 +7,7 @@ import type {
     AdminProductResponse,
     AdminProductStatusRequest,
     AdminProductUpdateRequest,
-} from '@/types/adminProduct.types'
+} from '@/types/adminProduct.types.ts'
 
 export const adminProductApi = {
     getProducts: async (

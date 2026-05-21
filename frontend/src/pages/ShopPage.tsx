@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
     CalendarDays,
     Loader2,
@@ -9,15 +9,11 @@ import {
     Star,
     Store,
     Users,
-    UserPlus,
-    UserCheck,
 } from 'lucide-react'
 import { shopApi } from '@/api/shopApi'
 import { productApi } from '@/api/productApi'
 import ProductCard from '@/components/ui/ProductCard'
-import { shopFollowApi } from '@/api/shopFollowApi'
-import { useAuthStore } from '@/store/authStore'
-import toast from 'react-hot-toast'
+import ContactSellerButton from '@/components/chat/ContactSellerButton'
 
 function formatDate(value?: string | null) {
     if (!value) return '-'
@@ -32,9 +28,6 @@ function formatDate(value?: string | null) {
 export default function ShopPage() {
     const { shopSlugOrId } = useParams<{ shopSlugOrId: string }>()
     const [page, setPage] = useState(0)
-    const queryClient = useQueryClient()
-    const navigate = useNavigate()
-    const { isAuthenticated } = useAuthStore()
 
     const {
         data: shop,
@@ -61,48 +54,6 @@ export default function ShopPage() {
             }),
         enabled: !!shop?.shopName,
         staleTime: 60 * 1000,
-    })
-
-    const { data: followStatus } = useQuery({
-        queryKey: ['shopFollowStatus', shop?.shopId],
-        queryFn: () => shopFollowApi.getFollowStatus(shop!.shopId),
-        enabled: isAuthenticated && !!shop?.shopId,
-        retry: false,
-        staleTime: 30 * 1000,
-    })
-
-    const followMutation = useMutation({
-        mutationFn: async () => {
-            if (!shop?.shopId) {
-                throw new Error('Shop không hợp lệ')
-            }
-
-            if (!isAuthenticated) {
-                navigate('/login')
-                return null
-            }
-
-            if (followStatus?.following) {
-                return shopFollowApi.unfollowShop(shop.shopId)
-            }
-
-            return shopFollowApi.followShop(shop.shopId)
-        },
-        onSuccess: (data) => {
-            if (!data || !shop?.shopId) return
-
-            toast.success(data.following ? 'Đã theo dõi shop' : 'Đã bỏ theo dõi shop')
-
-            queryClient.invalidateQueries({
-                queryKey: ['shopFollowStatus', shop.shopId],
-            })
-            queryClient.invalidateQueries({
-                queryKey: ['publicShop', shopSlugOrId],
-            })
-        },
-        onError: (err: any) => {
-            toast.error(err?.response?.data?.message || 'Không thể cập nhật theo dõi shop')
-        },
     })
 
     if (isLoadingShop) {
@@ -202,25 +153,13 @@ export default function ShopPage() {
                             </div>
                         </div>
 
-                        <div className="md:pb-1">
-                            <button
-                                type="button"
-                                onClick={() => followMutation.mutate()}
-                                disabled={followMutation.isPending}
-                                className={[
-                                    'inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-                                    followStatus?.following
-                                        ? 'border border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100'
-                                        : 'bg-orange-500 text-white hover:bg-orange-600',
-                                ].join(' ')}
+                        <div className="flex shrink-0 flex-wrap gap-2 pb-1 md:pb-0">
+                            <ContactSellerButton
+                                shopId={shop.shopId}
+                                shopSlug={shop.shopSlug}
                             >
-                                {followStatus?.following ? (
-                                    <UserCheck className="h-4 w-4" />
-                                ) : (
-                                    <UserPlus className="h-4 w-4" />
-                                )}
-                                {followStatus?.following ? 'Đang theo dõi' : 'Theo dõi shop'}
-                            </button>
+                                Liên hệ shop
+                            </ContactSellerButton>
                         </div>
                     </div>
                 </div>
