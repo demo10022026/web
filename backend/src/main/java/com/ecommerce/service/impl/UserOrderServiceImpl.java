@@ -1,11 +1,12 @@
 package com.ecommerce.service.impl;
 
+import com.ecommerce.dto.request.CreateReviewRequest;
+import com.ecommerce.dto.response.BuyAgainResponse;
 import com.ecommerce.dto.response.UserOrderResponse;
+import com.ecommerce.dto.response.UserReviewResponse;
 import com.ecommerce.entity.*;
 import com.ecommerce.exception.AppException;
-import com.ecommerce.repository.OrderItemRepository;
-import com.ecommerce.repository.OrderRepository;
-import com.ecommerce.repository.UserRepository;
+import com.ecommerce.repository.*;
 import com.ecommerce.service.UserOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,6 +25,10 @@ public class UserOrderServiceImpl implements UserOrderService {
     private final UserRepository userRepo;
     private final OrderRepository orderRepo;
     private final OrderItemRepository orderItemRepo;
+    private final ReviewRepository reviewRepo;
+    private final ProductRepository productRepo;
+    private final ShoppingCartRepository shoppingCartRepo;
+    private final CartItemRepository cartItemRepo;
 
     @Override
     @Transactional(readOnly = true)
@@ -53,6 +59,14 @@ public class UserOrderServiceImpl implements UserOrderService {
                         item -> item.getOrder().getOrderId()
                 ));
 
+        Map<Integer, Review> reviewsByOrderItemId = reviewRepo
+                .findByOrderItemIn(allItems)
+                .stream()
+                .collect(Collectors.toMap(
+                        review -> review.getOrderItem().getOrderItemId(),
+                        review -> review
+                ));
+
         String cleanKeyword = normalizeText(keyword);
 
         return orders.stream()
@@ -61,7 +75,8 @@ public class UserOrderServiceImpl implements UserOrderService {
                         itemsByOrderId.getOrDefault(
                                 order.getOrderId(),
                                 List.of()
-                        )
+                        ),
+                        reviewsByOrderItemId
                 ))
                 .filter(order -> matchKeyword(order, cleanKeyword))
                 .toList();
@@ -92,7 +107,186 @@ public class UserOrderServiceImpl implements UserOrderService {
 
         List<OrderItem> items = orderItemRepo.findByOrder(saved);
 
-        return toResponse(saved, items);
+        Map<Integer, Review> reviewsByOrderItemId = reviewRepo
+                .findByOrderItemIn(items)
+                .stream()
+                .collect(Collectors.toMap(
+                        review -> review.getOrderItem().getOrderItemId(),
+                        review -> review
+                ));
+
+        return toResponse(saved, items, reviewsByOrderItemId);
+    }
+
+    @Override
+    @Transactional
+    public UserReviewResponse createReview(
+            String email,
+            Integer orderItemId,
+            CreateReviewRequest request
+    ) {
+        User user = findUser(email);
+
+        OrderItem orderItem = orderItemRepo.findById(orderItemId)
+                .orElseThrow(() -> AppException.notFound("Sản phẩm trong đơn hàng"));
+
+        Order order = orderItem.getOrder();
+
+        if (order == null || order.getUser() == null
+                || !order.getUser().getUserId().equals(user.getUserId())) {
+            throw new AppException(
+                    "Bạn không có quyền đánh giá sản phẩm này",
+                    HttpStatus.FORBIDDEN,
+                    "FORBIDDEN_REVIEW"
+            );
+        }
+
+        if (order.getOrderStatus() != Order.OrderStatus.delivered) {
+            throw new AppException(
+                    "Chỉ có thể đánh giá sản phẩm sau khi đơn hàng hoàn thành",
+                    HttpStatus.BAD_REQUEST,
+                    "ORDER_NOT_DELIVERED"
+            );
+        }
+
+        if (reviewRepo.existsByOrderItem(orderItem)) {
+            throw new AppException(
+                    "Sản phẩm trong đơn hàng này đã được đánh giá",
+                    HttpStatus.BAD_REQUEST,
+                    "ORDER_ITEM_ALREADY_REVIEWED"
+            );
+        }
+
+        Product product = orderItem.getProduct();
+
+        if (product == null) {
+            throw new AppException(
+                    "Sản phẩm không tồn tại",
+                    HttpStatus.BAD_REQUEST,
+                    "PRODUCT_NOT_FOUND"
+            );
+        }
+
+        Review review = Review.builder()
+                .user(user)
+                .product(product)
+                .orderItem(orderItem)
+                .rating(request.getRating())
+                .reviewContent(normalizeContent(request.getReviewContent()))
+                .build();
+
+        Review saved = reviewRepo.save(review);
+
+        refreshProductRating(product);
+
+        return toReviewResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public BuyAgainResponse buyAgain(
+            String email,
+            Integer orderId
+    ) {
+        User user = findUser(email);
+
+        Order order = orderRepo.findByOrderIdAndUser(orderId, user)
+                .orElseThrow(() -> AppException.notFound("Đơn hàng"));
+
+        List<OrderItem> items = orderItemRepo.findByOrder(order);
+
+        if (items.isEmpty()) {
+            throw new AppException(
+                    "Đơn hàng không có sản phẩm để mua lại",
+                    HttpStatus.BAD_REQUEST,
+                    "ORDER_EMPTY"
+            );
+        }
+
+        ShoppingCart cart = shoppingCartRepo.findByUserUserId(user.getUserId())
+                .orElseGet(() -> shoppingCartRepo.save(
+                        ShoppingCart.builder()
+                                .user(user)
+                                .build()
+                ));
+
+        List<Integer> cartItemIds = new ArrayList<>();
+        List<BuyAgainResponse.SkippedItem> skippedItems = new ArrayList<>();
+
+        for (OrderItem item : items) {
+            Product product = item.getProduct();
+            ProductVariant variant = item.getVariant();
+
+            if (product == null || variant == null) {
+                skippedItems.add(toSkippedItem(
+                        item,
+                        "Sản phẩm hoặc biến thể không còn tồn tại"
+                ));
+                continue;
+            }
+
+            if (product.getProductStatus() != Product.Status.active) {
+                skippedItems.add(toSkippedItem(
+                        item,
+                        "Sản phẩm hiện không còn được bán"
+                ));
+                continue;
+            }
+
+            int stock = variant.getStockQuantity() == null
+                    ? 0
+                    : variant.getStockQuantity();
+
+            if (stock <= 0) {
+                skippedItems.add(toSkippedItem(
+                        item,
+                        "Sản phẩm đã hết hàng"
+                ));
+                continue;
+            }
+
+            int oldQuantity = item.getQuantity() == null ? 1 : item.getQuantity();
+            int quantityToAdd = Math.max(1, Math.min(oldQuantity, stock));
+
+            CartItem cartItem = cartItemRepo
+                    .findByCartCartIdAndVariantVariantId(
+                            cart.getCartId(),
+                            variant.getVariantId()
+                    )
+                    .map(existing -> {
+                        int currentQuantity = existing.getQuantity() == null
+                                ? 0
+                                : existing.getQuantity();
+
+                        int nextQuantity = Math.min(stock, currentQuantity + quantityToAdd);
+
+                        existing.setQuantity(nextQuantity);
+
+                        return existing;
+                    })
+                    .orElseGet(() -> CartItem.builder()
+                            .cart(cart)
+                            .variant(variant)
+                            .quantity(quantityToAdd)
+                            .build());
+
+            CartItem saved = cartItemRepo.save(cartItem);
+
+            cartItemIds.add(saved.getCartItemId());
+        }
+
+        if (cartItemIds.isEmpty()) {
+            throw new AppException(
+                    "Không có sản phẩm nào có thể mua lại",
+                    HttpStatus.BAD_REQUEST,
+                    "NO_ITEM_CAN_BUY_AGAIN"
+            );
+        }
+
+        return BuyAgainResponse.builder()
+                .cartItemIds(cartItemIds)
+                .skippedItems(skippedItems)
+                .build();
     }
 
     private User findUser(String email) {
@@ -125,7 +319,8 @@ public class UserOrderServiceImpl implements UserOrderService {
 
     private UserOrderResponse toResponse(
             Order order,
-            List<OrderItem> items
+            List<OrderItem> items,
+            Map<Integer, Review> reviewsByOrderItemId
     ) {
         OrderItem firstItem = items.isEmpty() ? null : items.get(0);
         Shop shop = firstItem == null ? null : firstItem.getShop();
@@ -167,14 +362,18 @@ public class UserOrderServiceImpl implements UserOrderService {
                 .createdAt(order.getCreatedAt())
 
                 .items(items.stream()
-                        .map(this::toItemResponse)
+                        .map(item -> toItemResponse(item, reviewsByOrderItemId))
                         .toList())
                 .build();
     }
 
-    private UserOrderResponse.Item toItemResponse(OrderItem item) {
+    private UserOrderResponse.Item toItemResponse(
+            OrderItem item,
+            Map<Integer, Review> reviewsByOrderItemId
+    ) {
         Product product = item.getProduct();
         ProductVariant variant = item.getVariant();
+        Review review = reviewsByOrderItemId.get(item.getOrderItemId());
 
         return UserOrderResponse.Item.builder()
                 .orderItemId(item.getOrderItemId())
@@ -190,7 +389,52 @@ public class UserOrderServiceImpl implements UserOrderService {
                 .quantity(item.getQuantity())
                 .price(item.getPrice())
                 .originalPrice(variant == null ? null : variant.getOriginalPrice())
+
+                .reviewed(review != null)
+                .reviewId(review == null ? null : review.getReviewId())
                 .build();
+    }
+
+    private BuyAgainResponse.SkippedItem toSkippedItem(
+            OrderItem item,
+            String reason
+    ) {
+        Product product = item.getProduct();
+        ProductVariant variant = item.getVariant();
+
+        return BuyAgainResponse.SkippedItem.builder()
+                .productId(product == null ? null : product.getProductId())
+                .productName(product == null ? null : product.getProductName())
+                .variantId(variant == null ? null : variant.getVariantId())
+                .variantName(variant == null ? null : variant.getVariantName())
+                .reason(reason)
+                .build();
+    }
+
+    private UserReviewResponse toReviewResponse(Review review) {
+        Product product = review.getProduct();
+
+        return UserReviewResponse.builder()
+                .reviewId(review.getReviewId())
+                .orderItemId(review.getOrderItem().getOrderItemId())
+                .productId(product == null ? null : product.getProductId())
+                .productName(product == null ? null : product.getProductName())
+                .rating(review.getRating())
+                .reviewContent(review.getReviewContent())
+                .createdAt(review.getCreatedAt())
+                .build();
+    }
+
+    private void refreshProductRating(Product product) {
+        Double averageRating = reviewRepo.averageRatingByProduct(product);
+
+        BigDecimal rating = averageRating == null
+                ? BigDecimal.ZERO
+                : BigDecimal.valueOf(averageRating).setScale(2, RoundingMode.HALF_UP);
+
+        product.setAverageRating(rating);
+
+        productRepo.save(product);
     }
 
     private boolean matchKeyword(
@@ -239,6 +483,12 @@ public class UserOrderServiceImpl implements UserOrderService {
         String trimmed = value.trim();
 
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeContent(String value) {
+        String normalized = normalizeText(value);
+
+        return normalized == null ? null : normalized;
     }
 
     private BigDecimal safeMoney(BigDecimal value) {

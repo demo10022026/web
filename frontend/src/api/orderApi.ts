@@ -23,6 +23,9 @@ export interface UserOrderItem {
     quantity: number
     price: number
     originalPrice?: number | null
+
+    reviewed?: boolean
+    reviewId?: number | null
 }
 
 export interface UserOrder {
@@ -59,6 +62,42 @@ export interface GetMyOrdersParams {
     keyword?: string
 }
 
+export interface CreateReviewRequest {
+    rating: number
+    reviewContent?: string | null
+}
+
+export interface UserReview {
+    reviewId: number
+    orderItemId: number
+    productId: number
+    productName: string
+    rating: number
+    reviewContent?: string | null
+    createdAt?: string | null
+}
+
+export interface BuyAgainSkippedItem {
+    productId?: number | null
+    productName?: string | null
+    variantId?: number | null
+    variantName?: string | null
+    reason: string
+}
+
+export interface BuyAgainResponse {
+    cartItemIds: number[]
+    skippedItems: BuyAgainSkippedItem[]
+}
+
+function cleanParams<T extends object>(params: T) {
+    return Object.fromEntries(
+        Object.entries(params).filter(([, value]) => {
+            return value !== undefined && value !== null && value !== ''
+        })
+    )
+}
+
 export const orderApi = {
     getMyOrders: async (
         params: GetMyOrdersParams = {}
@@ -66,11 +105,7 @@ export const orderApi = {
         const res = await axiosInstance.get<ApiResponse<UserOrder[]>>(
             '/orders/my',
             {
-                params: Object.fromEntries(
-                    Object.entries(params).filter(([, value]) => {
-                        return value !== undefined && value !== null && value !== ''
-                    })
-                ),
+                params: cleanParams(params),
             }
         )
 
@@ -80,6 +115,29 @@ export const orderApi = {
     cancelOrder: async (orderId: number): Promise<UserOrder> => {
         const res = await axiosInstance.put<ApiResponse<UserOrder>>(
             `/orders/${orderId}/cancel`
+        )
+
+        return res.data.data!
+    },
+
+    createReview: async ({
+        orderItemId,
+        data,
+    }: {
+        orderItemId: number
+        data: CreateReviewRequest
+    }): Promise<UserReview> => {
+        const res = await axiosInstance.post<ApiResponse<UserReview>>(
+            `/orders/items/${orderItemId}/review`,
+            data
+        )
+
+        return res.data.data!
+    },
+
+    buyAgain: async (orderId: number): Promise<BuyAgainResponse> => {
+        const res = await axiosInstance.post<ApiResponse<BuyAgainResponse>>(
+            `/orders/${orderId}/buy-again`
         )
 
         return res.data.data!

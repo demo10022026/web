@@ -2,12 +2,14 @@ package com.ecommerce.service.impl;
 
 import com.ecommerce.dto.response.SellerDashboardResponse;
 import com.ecommerce.dto.response.ShopResponse;
+import com.ecommerce.entity.Order;
 import com.ecommerce.entity.Product;
 import com.ecommerce.entity.ProductVariant;
 import com.ecommerce.entity.SellerProfile;
 import com.ecommerce.entity.Shop;
 import com.ecommerce.entity.User;
 import com.ecommerce.exception.AppException;
+import com.ecommerce.repository.OrderItemRepository;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.repository.ProductVariantRepository;
 import com.ecommerce.repository.SellerRepository;
@@ -21,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -34,6 +38,7 @@ public class SellerDashboardServiceImpl implements SellerDashboardService {
     private final ShopRepository shopRepo;
     private final ProductRepository productRepo;
     private final ProductVariantRepository variantRepo;
+    private final OrderItemRepository orderItemRepo;
 
     @Override
     @Transactional(readOnly = true)
@@ -72,6 +77,30 @@ public class SellerDashboardServiceImpl implements SellerDashboardService {
                 LOW_STOCK_THRESHOLD
         );
 
+        long pendingOrders = orderItemRepo.countDistinctOrdersByShopAndStatus(
+                shop,
+                Order.OrderStatus.pending
+        );
+
+        BigDecimal totalRevenue = safeMoney(
+                orderItemRepo.sumRevenueByShopAndStatus(
+                        shop,
+                        Order.OrderStatus.delivered
+                )
+        );
+
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        LocalDateTime startOfTomorrow = startOfToday.plusDays(1);
+
+        BigDecimal todayRevenue = safeMoney(
+                orderItemRepo.sumRevenueByShopAndStatusBetween(
+                        shop,
+                        Order.OrderStatus.delivered,
+                        startOfToday,
+                        startOfTomorrow
+                )
+        );
+
         List<SellerDashboardResponse.RecentProduct> recentProducts =
                 productRepo.findRecentByShop(shop, PageRequest.of(0, 5))
                         .getContent()
@@ -99,16 +128,13 @@ public class SellerDashboardServiceImpl implements SellerDashboardService {
                         .bannedProducts(bannedProducts)
                         .totalSold(totalSold)
                         .lowStockVariants(lowStockVariants)
-
-                        // Chưa có OrderItem theo shop trong repo hiện tại.
-                        .pendingOrders(0)
-                        .todayRevenue(BigDecimal.ZERO)
-                        .totalRevenue(BigDecimal.ZERO)
-
+                        .pendingOrders(pendingOrders)
+                        .todayRevenue(todayRevenue)
+                        .totalRevenue(totalRevenue)
                         .averageRating(shop.getRating())
                         .build())
                 .tasks(SellerDashboardResponse.Tasks.builder()
-                        .newOrders(0)
+                        .newOrders(pendingOrders)
                         .lowStockProducts(lowStockVariants)
                         .needAvatar(isBlank(shop.getAvatarUrl()))
                         .needBanner(isBlank(shop.getBannerUrl()))
@@ -187,6 +213,10 @@ public class SellerDashboardServiceImpl implements SellerDashboardService {
 
     private long safeLong(Long value) {
         return value == null ? 0 : value;
+    }
+
+    private BigDecimal safeMoney(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     private boolean isBlank(String value) {

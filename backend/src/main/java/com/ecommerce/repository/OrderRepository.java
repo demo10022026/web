@@ -87,4 +87,72 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
             @Param("shop") Shop shop,
             @Param("orderId") Integer orderId
     );
+
+    @Query(
+            value = """
+                SELECT DISTINCT o
+                FROM OrderItem oi
+                JOIN oi.order o
+                JOIN o.user u
+                LEFT JOIN oi.shop s
+                LEFT JOIN oi.product p
+                LEFT JOIN oi.variant v
+                WHERE (:status IS NULL OR o.orderStatus = :status)
+                AND (
+                    :keyword IS NULL
+                    OR (:keywordOrderId IS NOT NULL AND o.orderId = :keywordOrderId)
+                    OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.receiverName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.receiverPhone) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.shippingAddress) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.provinceName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.districtName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.wardName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(s.shopName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(v.variantName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(v.sku) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.ghnOrderCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.trackingCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                )
+                ORDER BY o.createdAt DESC
+            """,
+            countQuery = """
+                SELECT COUNT(DISTINCT o)
+                FROM OrderItem oi
+                JOIN oi.order o
+                JOIN o.user u
+                LEFT JOIN oi.shop s
+                LEFT JOIN oi.product p
+                LEFT JOIN oi.variant v
+                WHERE (:status IS NULL OR o.orderStatus = :status)
+                AND (
+                    :keyword IS NULL
+                    OR (:keywordOrderId IS NOT NULL AND o.orderId = :keywordOrderId)
+                    OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.receiverName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.receiverPhone) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.shippingAddress) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.provinceName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.districtName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.wardName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(s.shopName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(v.variantName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(v.sku) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.ghnOrderCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(o.trackingCode) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                )
+            """
+    )
+    Page<Order> adminSearchOrders(
+            @Param("status") Order.OrderStatus status,
+            @Param("keyword") String keyword,
+            @Param("keywordOrderId") Integer keywordOrderId,
+            Pageable pageable
+    );
 }

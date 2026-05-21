@@ -1,9 +1,13 @@
 package com.ecommerce.controller;
 
+import com.ecommerce.dto.request.CreateReviewRequest;
+import com.ecommerce.dto.response.BuyAgainResponse;
 import com.ecommerce.dto.response.UserOrderResponse;
+import com.ecommerce.dto.response.UserReviewResponse;
 import com.ecommerce.exception.AppException;
 import com.ecommerce.service.UserOrderService;
 import com.ecommerce.util.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,6 +45,36 @@ public class UserOrderController {
     ) {
         return ApiResponse.success(
                 userOrderService.cancelOrder(
+                        requireEmail(user),
+                        orderId
+                )
+        );
+    }
+
+    @PostMapping("/items/{orderItemId}/review")
+    public ApiResponse<UserReviewResponse> createReview(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable Integer orderItemId,
+            @Valid @RequestBody CreateReviewRequest request
+    ) {
+        return ApiResponse.success(
+                "Đánh giá sản phẩm thành công",
+                userOrderService.createReview(
+                        requireEmail(user),
+                        orderItemId,
+                        request
+                )
+        );
+    }
+
+    @PostMapping("/{orderId}/buy-again")
+    public ApiResponse<BuyAgainResponse> buyAgain(
+            @AuthenticationPrincipal UserDetails user,
+            @PathVariable Integer orderId
+    ) {
+        return ApiResponse.success(
+                "Đã thêm sản phẩm có thể mua lại vào giỏ hàng",
+                userOrderService.buyAgain(
                         requireEmail(user),
                         orderId
                 )

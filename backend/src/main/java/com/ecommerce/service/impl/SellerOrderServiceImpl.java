@@ -26,6 +26,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     private final ShopRepository shopRepo;
     private final OrderRepository orderRepo;
     private final OrderItemRepository orderItemRepo;
+    private final ProductRepository productRepo;
 
     @Override
     @Transactional(readOnly = true)
@@ -107,9 +108,13 @@ public class SellerOrderServiceImpl implements SellerOrderService {
         Order order = orderRepo.findSellerOrderById(shop, orderId)
                 .orElseThrow(() -> AppException.notFound("Đơn hàng"));
 
+        Order.OrderStatus previousStatus = order.getOrderStatus();
         Order.OrderStatus nextStatus = request.getOrderStatus();
 
-        validateStatusTransition(order.getOrderStatus(), nextStatus);
+        validateStatusTransition(previousStatus, nextStatus);
+
+        List<OrderItem> allOrderItems = orderItemRepo.findByOrder(order);
+        adjustSoldCountOnStatusChange(previousStatus, nextStatus, allOrderItems);
 
         order.setOrderStatus(nextStatus);
 
@@ -121,6 +126,60 @@ public class SellerOrderServiceImpl implements SellerOrderService {
         );
 
         return toResponse(saved, items, shop);
+    }
+
+    private void adjustSoldCountOnStatusChange(
+            Order.OrderStatus previousStatus,
+            Order.OrderStatus nextStatus,
+            List<OrderItem> items
+    ) {
+        if (previousStatus == nextStatus || items == null || items.isEmpty()) {
+            return;
+        }
+
+        if (
+                previousStatus != Order.OrderStatus.delivered
+                        && nextStatus == Order.OrderStatus.delivered
+        ) {
+            applySoldCountDelta(items, 1);
+            return;
+        }
+
+        if (
+                previousStatus == Order.OrderStatus.delivered
+                        && nextStatus != Order.OrderStatus.delivered
+        ) {
+            applySoldCountDelta(items, -1);
+        }
+    }
+
+    private void applySoldCountDelta(
+            List<OrderItem> items,
+            int direction
+    ) {
+        for (OrderItem item : items) {
+            Product product = item.getProduct();
+
+            if (product == null) {
+                continue;
+            }
+
+            int currentSoldCount = product.getSoldCount() == null
+                    ? 0
+                    : product.getSoldCount();
+
+            int quantity = item.getQuantity() == null
+                    ? 0
+                    : item.getQuantity();
+
+            int nextSoldCount = Math.max(
+                    0,
+                    currentSoldCount + direction * quantity
+            );
+
+            product.setSoldCount(nextSoldCount);
+            productRepo.save(product);
+        }
     }
 
     private void validateStatusTransition(

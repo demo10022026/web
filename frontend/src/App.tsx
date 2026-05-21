@@ -16,6 +16,8 @@ import HomePage from '@/pages/HomePage'
 import SearchPage from '@/pages/SearchPage'
 import ProductDetailPage from '@/pages/ProductDetailPage'
 import { FlashSalePage } from '@/pages/FlashSalePage'
+import ProductReviewsPage from '@/pages/ProductReviewsPage'
+import NotificationsPage from '@/pages/NotificationsPage'
 
 // User pages
 import ProfilePage from '@/pages/ProfilePage'
@@ -44,12 +46,17 @@ import CartPage from '@/pages/CartPage'
 
 // Admin
 import AdminLayout from '@/components/admin/AdminLayout'
+import AdminDashboardPage from "@/pages/admin/AdminDashboardPage.tsx";
 import AdminProductsPage from '@/pages/admin/AdminProductsPage'
 import AdminProductDetailPage from '@/pages/admin/AdminProductDetailPage'
 import AdminSellersPage from '@/pages/admin/AdminSellersPage'
 import AdminSellerDetailPage from '@/pages/admin/AdminSellerDetailPage'
 import AdminUsersPage from '@/pages/admin/AdminUsersPage'
 import AdminUserDetailPage from '@/pages/admin/AdminUserDetailPage'
+import AdminOrdersPage from '@/pages/admin/AdminOrdersPage'
+import AdminOrderDetailPage from '@/pages/admin/AdminOrderDetailPage'
+import AdminVouchersPage from '@/pages/admin/AdminVouchersPage'
+import AdminVoucherDetailPage from '@/pages/admin/AdminVoucherDetailPage'
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -76,6 +83,8 @@ export default function App() {
                         <Route path="/search" element={<SearchPage />} />
                         <Route path="/products/:id" element={<ProductDetailPage />} />
                         <Route path="/flash-sale" element={<FlashSalePage />} />
+                        <Route path="/products/:id/reviews" element={<ProductReviewsPage />} />
+                        <Route path="/notifications" element={<NotificationsPage />} />
                     </Route>
 
                     {/* User authenticated */}
@@ -122,7 +131,13 @@ export default function App() {
                     {/* Admin / Manager */}
                     <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
                         <Route path="/admin" element={<AdminLayout />}>
+
                             <Route index element={<Navigate to="/admin/sellers" replace />} />
+
+                            <Route path="dashboard" element={<AdminDashboardPage />} />
+
+                            <Route path="vouchers" element={<AdminVouchersPage />} />
+                            <Route path="vouchers/:voucherId" element={<AdminVoucherDetailPage />} />
 
                             <Route path="users" element={<AdminUsersPage />} />
                             <Route path="users/:userId" element={<AdminUserDetailPage />} />
@@ -132,6 +147,9 @@ export default function App() {
 
                             <Route path="products" element={<AdminProductsPage />} />
                             <Route path="products/:productId" element={<AdminProductDetailPage />} />
+
+                            <Route path="orders" element={<AdminOrdersPage />} />
+                            <Route path="orders/:orderId" element={<AdminOrderDetailPage />} />
                         </Route>
                     </Route>
 

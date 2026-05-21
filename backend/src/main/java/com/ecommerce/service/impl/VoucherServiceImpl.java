@@ -308,7 +308,29 @@ public class VoucherServiceImpl implements VoucherService {
             return true;
         }
 
+        if (status.equals("usable")) {
+            return "active".equals(response.getVoucherStatus())
+                    && !isUserUsedOut(response);
+        }
+
+        if (status.equals("expired")) {
+            return "expired".equals(response.getVoucherStatus())
+                    || "inactive".equals(response.getVoucherStatus());
+        }
+
+        if (status.equals("used")) {
+            return "used_out".equals(response.getVoucherStatus())
+                    || isUserUsedOut(response);
+        }
+
         return status.equals(response.getVoucherStatus());
+    }
+
+    private boolean isUserUsedOut(VoucherResponse response) {
+        return response.getPerUserLimit() != null
+                && response.getPerUserLimit() > 0
+                && response.getUserUsedCount() != null
+                && response.getUserUsedCount() >= response.getPerUserLimit();
     }
 
     private int getUserUsedCount(

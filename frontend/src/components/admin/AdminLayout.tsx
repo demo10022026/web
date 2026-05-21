@@ -6,10 +6,24 @@ import {
     Package,
     ShoppingBag,
     Store,
+    TicketPercent,
     Users,
+    type LucideIcon,
 } from 'lucide-react'
 
-const navItems = [
+interface AdminNavItem {
+    to: string
+    label: string
+    icon: LucideIcon
+    disabled?: boolean
+}
+
+const navItems: AdminNavItem[] = [
+    {
+        to: '/admin/dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+    },
     {
         to: '/admin/sellers',
         label: 'Người bán',
@@ -29,7 +43,11 @@ const navItems = [
         to: '/admin/orders',
         label: 'Đơn hàng',
         icon: ShoppingBag,
-        disabled: true,
+    },
+    {
+        to: '/admin/vouchers',
+        label: 'Voucher',
+        icon: TicketPercent,
     },
     {
         to: '/admin/reports',
@@ -52,7 +70,6 @@ export default function AdminLayout() {
                         <h1 className="text-base font-bold text-gray-900">
                             Admin
                         </h1>
-
                         <p className="text-xs text-gray-500">ShopVN Console</p>
                     </div>
                 </div>
@@ -65,6 +82,7 @@ export default function AdminLayout() {
                             return (
                                 <button
                                     key={item.to}
+                                    type="button"
                                     disabled
                                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-400"
                                 >
@@ -83,7 +101,7 @@ export default function AdminLayout() {
                                 to={item.to}
                                 className={({ isActive }) =>
                                     [
-                                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
+                                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
                                         isActive
                                             ? 'bg-orange-50 text-orange-600'
                                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
@@ -100,7 +118,7 @@ export default function AdminLayout() {
                 <div className="absolute bottom-4 left-4 right-4">
                     <Link
                         to="/"
-                        className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                        className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
                     >
                         <Home size={17} />
                         Về trang chủ
@@ -108,7 +126,7 @@ export default function AdminLayout() {
                 </div>
             </aside>
 
-            <main className="ml-64 min-h-screen">
+            <main className="ml-64 min-h-screen p-6">
                 <Outlet />
             </main>
         </div>

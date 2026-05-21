@@ -145,18 +145,16 @@ export default function AdminDashboardPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 p-6">
 
             {/* Header */}
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        Dashboard
-                    </h1>
-
-                    <p className="text-sm text-gray-500 mt-1">
-                        Tổng quan hệ thống ShopVN
-                    </p>
+                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">
+                            Dashboard
+                        </h1>
+                    </div>
                 </div>
 
                 <div className="text-sm text-gray-400">

@@ -23,4 +23,11 @@ public interface UserVoucherRepository extends JpaRepository<UserVoucher, Intege
             User user,
             Voucher voucher
     );
+
+    long countByVoucher(Voucher voucher);
+
+    long countByVoucherAndUsedCountGreaterThan(
+            Voucher voucher,
+            Integer usedCount
+    );
 }

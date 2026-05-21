@@ -157,8 +157,8 @@ export default function CheckoutPage() {
         data: savedVouchers = [],
         isLoading: isLoadingVouchers,
     } = useQuery({
-        queryKey: ['myVouchers', 'usable'],
-        queryFn: () => voucherApi.getMyVouchers({ status: 'usable' }),
+        queryKey: ['myVouchers', 'checkout', 'all'],
+        queryFn: () => voucherApi.getMyVouchers({ status: 'all' }),
         retry: 1,
     })
 

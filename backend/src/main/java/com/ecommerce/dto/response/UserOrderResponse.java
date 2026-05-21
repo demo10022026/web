@@ -20,9 +20,9 @@ public class UserOrderResponse {
     private String shopName;
     private String shopSlug;
 
-    private BigDecimal totalAmount;
-    private BigDecimal shippingFee;
     private BigDecimal subtotalAmount;
+    private BigDecimal shippingFee;
+    private BigDecimal totalAmount;
 
     private String receiverName;
     private String receiverPhone;
@@ -54,5 +54,8 @@ public class UserOrderResponse {
         private Integer quantity;
         private BigDecimal price;
         private BigDecimal originalPrice;
+
+        private Boolean reviewed;
+        private Integer reviewId;
     }
 }
